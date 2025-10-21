@@ -2,16 +2,16 @@ import { createTheme } from "@mui/material/styles";
 const theme = createTheme({
   palette: {
     primary: {
-      light: '#26a69a',
-      main: '#009688',
-      dark: '#00796b',
+      light: '#565858ff',
+      main: '#424343ff',
+      dark: '#2f3030ff',
       contrastText: '#fff',
       lightDarkText: 'rgba(209, 205, 194, 1)',
     },
       secondary: {
-      light: '#26a69a',
-      main: '#009688',
-      dark: '#00796b',
+      light: '#565858ff',
+      main: '#424343ff',
+      dark: '#2f3030ff',
       contrastText: '#fff',
       lightDarkText: 'rgba(209, 205, 194, 1)',
     },
