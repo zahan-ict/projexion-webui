@@ -86,7 +86,7 @@ const Login = () => {
             <img
               src='/static/images/logo.png'
               alt="Logo"
-              style={{ width: "100%", maxWidth: "200px", height: "auto" }}
+              style={{  }}
             />
             <Card sx={{ minWidth: 375, marginTop: 5, mx: 2 }}>
               {loading && <LinearProgress color="primary" />}

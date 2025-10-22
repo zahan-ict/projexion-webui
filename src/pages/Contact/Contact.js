@@ -19,11 +19,11 @@ import {
   TableRow,
   Snackbar,
   Alert,
-  Fade
+  Grid,
+  CircularProgress
 } from '@mui/material';
 import { Delete, Close, VisibilityOutlined, Edit, PictureAsPdf } from '@mui/icons-material';
 import Ribbon from '../../common/Ribbon';
-import CircularProgress from '@mui/material/CircularProgress';
 import { useAxiosInstance } from '../Auth/AxiosProvider';
 import CustomPagination from '../../components/CustomPagination'
 
@@ -258,47 +258,70 @@ const Contact = () => {
   /*###################################### Generate Pdf #######################################*/
 
   const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
-  const openPdfDialog = async (rowData) => {
-    setSelectedRow(rowData || null);
-    setRowDetails(rowData);
-     
+  const [imageSrc, setImageSrc] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [comment, setComment] = useState('');
+  const [prices, setPrices] = useState(['']); // Start with one price field
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+
+
+  const addPriceField = () => {
+    setPrices([...prices, '']);
+  };
+
+  const updatePrice = (index, value) => {
+    const updated = [...prices];
+    updated[index] = value;
+    setPrices(updated);
+  };
+
+  const resetPriceFields = () => {
+    setPrices(['']); // Resets to a single empty field
+  };
+
+
+  const buildPdf = async (rowData) => {
     // Prepare PDF data object
     const pdfData = {
-      me: rowData.Susa || "",
+      pdfCreator: "Adminstraor" || "",
+      clientNamePrefix: rowData.prefix || "",
+      clientFirstname: rowData.firstName || "",
+      clientLastname: rowData.name || "",
       clientAddress: rowData.privateAddressStreet || "",
+      clientPostCode: rowData.privateAddressPostcode || "",
       clientCity: rowData.privateAddressCity || "",
-      fiscalCode: rowData.privateAddressPostcode || "",
+      clientCountry: rowData.privateAddressCountry || "",
       vatNumber: rowData.vatNumber || "",
       city: rowData.city || "",
       date: rowData.formattedDate || "", // make sure formattedDate is part of rowData
-      invoiceNumber: rowData.invoiceNumber || "",
+      invoiceNumber: invoiceNumber.trim() || "",
       invoiceTitle: rowData.invoiceTitle || "",
       bankName: rowData.bankName || "",
       iban: rowData.iban || "",
       swift: rowData.swift || "",
       exchangeRate: rowData.exchangeRate || 1, // default value if missing
-      priceList: rowData.priceList || [],
+      priceList: rowData.prices || [],
+      comment: comment.trim() || "",
     };
 
     try {
-      console.log("Working.............");
-        const response = await axiosInstance.post('/pdf/view', pdfData, {
-      responseType: 'arraybuffer', // Important for binary data
-    });
+      const response = await axiosInstance.post('/pdf/pdf-view', pdfData)
 
-       const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
+      const base64Image = response.data;
+      setImageSrc(`data:image/png;base64,${base64Image}`);
+      setIsPdfDialogOpen(true);
 
-    // Create a URL for the Blob
-    const pdfUrl = URL.createObjectURL(pdfBlob);
-
-    // Open PDF in a new browser tab
-    window.open(pdfUrl);
-      // setIsPdfDialogOpen(true);
     } catch (error) {
       console.error("Error generating PDF:", error);
     }
+
   };
 
+  const openPdfDialog = async (rowData) => {
+    setSelectedRow(rowData || null);
+    setRowDetails(rowData);
+    buildPdf(rowData);
+  };
 
 
   const closePdfDialog = () => {
@@ -388,7 +411,6 @@ const Contact = () => {
               label="Rack Name"
               error={!!errors.rackName}
               helperText={errors.rackName}
-
               autoFocus
             />
 
@@ -439,7 +461,6 @@ const Contact = () => {
           getRowHeight={() => 65}
           loading={dataLoading}
           loadingOverlay={<div className="Data-Loader"><CircularProgress /></div>}
-
           // onRowSelectionModelChange={handleSelectionChange}
           onCellClick={(params, event) => {
             if (params.field !== '__check__') {
@@ -453,7 +474,7 @@ const Contact = () => {
 
       <Snackbar
         open={open}
-        autoHideDuration={1000}
+        autoHideDuration={3000}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         onClose={closeSnackbar}
       >
@@ -553,36 +574,92 @@ const Contact = () => {
       </Dialog>
 
 
+
       {/*  Generate Pdf   */}
-      <Dialog open={isPdfDialogOpen}
+      <Dialog
+        open={isPdfDialogOpen}
         onClose={closePdfDialog}
-        closeAfterTransition={true}
+        closeAfterTransition
         disableRestoreFocus
-        fullWidth>
+        fullWidth
+        maxWidth="xl"
+      >
         <IconButton
           aria-label="close"
           onClick={closePdfDialog}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: "GrayText"
-          }}>
+          sx={{ position: 'absolute', right: 8, top: 8, color: 'GrayText' }}>
           <Close />
         </IconButton>
-        <DialogTitle>Kontaktdetails</DialogTitle>
-        <DialogContent sx={{ minWidth: 400 }}>
-          Generate PDF
 
+        <DialogTitle>PDF</DialogTitle>
+
+        <DialogContent>
+          <Button variant="outlined" onClick={addPriceField} sx={{ mt: 1, mr: 1 }}>
+            + Felder hinzufügen
+          </Button>
+          <Button variant="outlined" onClick={resetPriceFields} sx={{ mt: 1, mr: 1 }}>
+            Zurücksetzen
+          </Button>
+          <Button variant="contained" color='primary' onClick={buildPdf} sx={{ mt: 1 }}>
+            Update PDF
+          </Button>
+
+          <Grid container spacing={2}>
+            <Grid item xs={4}>
+              <TextField
+                label="Rechnungsnummer"
+                fullWidth
+                margin="normal"
+                multiline
+                // You can adjust this number as needed
+                value={invoiceNumber}
+                onChange={(e) => setInvoiceNumber(e.target.value)} />
+
+
+              <TextField
+                label="Kommentare hinzufügen"
+                fullWidth
+                margin="normal"
+                multiline
+                rows={3} // You can adjust this number as needed
+                value={comment}
+                onChange={(e) => setComment(e.target.value)} />
+
+
+              {prices.map((price, index) => (
+                <TextField
+                  key={index}
+                  label={`Price ${index + 1}`}
+                  fullWidth
+                  margin="normal"
+                  value={price}
+                  onChange={(e) => updatePrice(index, e.target.value)}
+                />
+              ))}
+
+
+            </Grid>
+
+            <Grid item xs={8}>
+              <Paper sx={{ mt: 2, width: 'fit-content' }} elevation={3}>
+                {loading && <CircularProgress />}
+                <img
+                  src={imageSrc}
+                  alt="template"
+                  onLoad={() => setLoading(false)}
+                  style={{ display: loading ? 'none' : 'inline' }}
+                />
+              </Paper>
+            </Grid>
+          </Grid>
         </DialogContent>
+
         <DialogActions>
-          <Button onClick={closePdfDialog}>Cancel</Button>
+            <Button variant="contained" color='primary' onClick={buildPdf} sx={{ mt: 1 }}>
+            Generate PDF
+          </Button>
         </DialogActions>
       </Dialog>
-
-
-
-
 
 
 
