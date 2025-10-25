@@ -20,12 +20,17 @@ import {
   Snackbar,
   Alert,
   Grid,
-  CircularProgress
+  CircularProgress,
+  ButtonGroup,
+  Autocomplete,
+  Checkbox,
+  Chip
 } from '@mui/material';
-import { Delete, Close, VisibilityOutlined, Edit, PictureAsPdf } from '@mui/icons-material';
+import { Delete, Close, VisibilityOutlined, Edit, PictureAsPdf, AddCircle, RemoveCircle, CheckBox, CheckBoxOutlineBlank } from '@mui/icons-material';
 import Ribbon from '../../common/Ribbon';
 import { useAxiosInstance } from '../Auth/AxiosProvider';
 import CustomPagination from '../../components/CustomPagination'
+
 
 
 const Contact = () => {
@@ -33,9 +38,8 @@ const Contact = () => {
   const [rows, setRows] = useState([]);
   const [highlightedRowIds, setHighlightedRowIds] = useState([]); // State for tracking highlighted rows
   const [selectedRow, setSelectedRow] = useState(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [rowToDeleteId, setRowToDeleteId] = useState(null);
-  const [isAddRackOpen, setIsAddRackOpen] = useState(false);
+
 
   /*###################################### Load All Data On Page Load #######################################*/
   const [dataLoading, setDataLoading] = useState(true);
@@ -90,14 +94,14 @@ const Contact = () => {
     },
     {
       field: 'phoneCompany',
-      headerName: 'Durchwahl',
-      renderHeader: () => <strong>Durchwahl</strong>,
+      headerName: 'Phone',
+      renderHeader: () => <strong>Phone</strong>,
       width: 150,
       flex: 1,
       cellClassName: (params) => (highlightedRowIds.includes(params.id) ? 'bold' : 'normal'),
     },
     {
-      field: 'profession',
+      field: 'companyPosition',
       headerName: 'Position in der Firma',
       renderHeader: () => <strong>Position in der Firma</strong>,
       width: 190,
@@ -121,7 +125,7 @@ const Contact = () => {
         <Stack direction="row" alignItems="right" spacing={3}>
           <IconButton onClick={() => openDetailsDialog(params.row)} size="medium" aria-label="link" color="primary"><VisibilityOutlined fontSize='inherit' /></IconButton>
           <IconButton onClick={() => openPdfDialog(params.row)} size="medium" aria-label="link" color="primary"><PictureAsPdf fontSize='inherit' /></IconButton>
-          <IconButton onClick={() => openDialog(params.id)} size="medium" color="primary"><Edit fontSize='inherit' /></IconButton>
+          <IconButton onClick={() => openEditDialog(params.row)} size="medium" color="primary"><Edit fontSize='inherit' /></IconButton>
           <IconButton onClick={() => openDeleteDialog(params.id)} size="medium" color="primary"><Delete fontSize='inherit' /></IconButton>
         </Stack>
       ),
@@ -129,17 +133,17 @@ const Contact = () => {
   ];
 
   /*###################################### On change event #######################################*/
-  const [formData, setFormData] = useState({});
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+  // const [formData, setFormData] = useState({});
+  // const handleChange = (e) => {
+  //   const { name, value } = e.target;
+  //   setFormData({ ...formData, [name]: value });
 
-    // Clear the specific field error when the user starts typing
-    setErrors((prevErrors) => ({
-      ...prevErrors,
-      [name]: '',
-    }));
-  };
+  //   // Clear the specific field error when the user starts typing
+  //   setErrors((prevErrors) => ({
+  //     ...prevErrors,
+  //     [name]: '',
+  //   }));
+  // };
 
   /*###################################### Valid form #######################################*/
   const [errors, setErrors] = useState({});
@@ -150,65 +154,171 @@ const Contact = () => {
   };
 
   /*###################################### Add Contact #######################################*/
+  const [isAddContactOpen, setIsAddContactOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState("add");
+  const [formData, setFormData] = useState({
+    prefix: '',
+    name: '',
+    firstName: '',
+    privateAddressStreet: '',
+    privateAddressPostcode: '',
+    privateAddressCity: '',
+    privateAddressCountry: '',
+    companyPosition: '',
+    contactNotes: '',
+    phone: '',
+    phoneCompany: '',
+    phoneCentral: '',
+    fax: '',
+    email1: '',
+    email2: '',
+    companyIs: '',
+    profession: '',
+    birthDate: '',
+    ahvNumber: '',
+    nationality: '',
+    bank: '',
+    bankAccount: '',
+    postcheckAccount: '',
+    projects: [],
+    companies: []
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAdd = async () => {
+    // Simple validation example
+    if (!formData.name || !formData.firstName) {
+      alert('Vorname und Nachname sind erforderlich');
+      return;
+    }
+    //  const formErrors = validateForm();
+    const payload = {
+      ...formData,
+      projects: formData.projects?.map((p) => ({
+        id: p.id,
+        projectName: p.projectName
+      })) || [],
+      companies: formData.companies?.map((c) => ({
+        id: c.id,
+        companyName: c.companyName, // or whatever fields you have
+      })) || [],
+    };
+
+    try {
+      await axiosInstance.post('/contacts/', payload);
+      fetchData(paginationModel);
+      setOpen(true); // Show Success Message
+      closeAddDialog();
+    } catch (error) {
+      console.log(error)
+    }
+  };
+
   const openAddDialog = () => {
-    setIsAddRackOpen(true);
+    setDialogMode("add");
+    setFormData({}); // clear form
+    setIsAddContactOpen(true);
   };
 
   const closeAddDialog = () => {
-    setIsAddRackOpen(false);;
+    setIsAddContactOpen(false);;
   };
 
-  const saveRack = async () => {
-    const formErrors = validateForm();
-    if (Object.keys(formErrors).length === 0) {
-      try {
-        await axiosInstance.post('/contacts/', formData);
-        fetchData(paginationModel);
-        setOpen(true); // Show Success Message
-        closeDialog();
-        closeAddDialog();
-      } catch (error) {
-        console.log(error)
-      }
-    } else {
-      setErrors(formErrors);
+  // === Right Side: Project (autocomplete) ===
+  const [projects, setProjects] = useState([]);  // Available projects
+  const handleProject = async () => {
+    try {
+      const res = await axiosInstance.get("/projects/project-name");
+      const transformed = Object.entries(res.data).map(([name, id]) => ({
+        projectName: name,
+        id: id,
+      }));
+      setProjects(transformed);
+
+    } catch (err) {
+      console.error("Error fetching projects:", err);
+    }
+  };
+
+  // === Right Side: Company (autocomplete) ===
+  const [companies, setCompanies] = useState([]);  // Available projects
+  const handleCompany = async () => {
+    try {
+      const res = await axiosInstance.get("/companies/company-name");
+      const transformed = Object.entries(res.data).map(([name, id]) => ({
+        companyName: name,
+        id: id,
+      }));
+      setCompanies(transformed);
+
+    } catch (err) {
+      console.error("Error fetching companies:", err);
     }
   };
 
   /*###################################### Update Contact #######################################*/
-  const updateRack = async () => {
-    const formErrors = validateForm();
-    if (Object.keys(formErrors).length === 0) {
-      try {
-        const updatedRows = rows.map((row) =>
-          row.id === selectedRow.id ? { ...row, ...formData } : row,
-        );
-        await axiosInstance.put(`/contacts/${formData.id}`, formData);
-        setRows(updatedRows);
-        setHighlightedRowIds([selectedRow.id]); // Mark updated row
-        setOpen(true); // Show Success Message
-        closeDialog();
-      } catch (error) {
-        console.log(error);
-      }
-    } else {
-      setErrors(formErrors);
+
+  const updateContact = async () => {
+    try {
+      // Build payload in correct format
+      const payload = {
+        ...formData,
+        // Map companies and projects to expected structure
+        companies: formData.companies?.map(c => ({
+          id: c.id,
+          companyName: c.companyName
+        })) || [],
+        projects: formData.projects?.map(p => ({
+          id: p.id,
+          projectName: p.projectName
+        })) || [],
+
+        // Optional: remove these if backend doesn't need them
+        companyIs: undefined,
+        projectIs: undefined,
+        createdAt: undefined,
+        updatedAt: undefined,
+      };
+
+      console.log("Updating contact with payload:", payload);
+
+      await axiosInstance.put(`/contacts/${formData.id}`, payload);
+      fetchData(paginationModel); // refresh table
+      setOpen(true);
+      closeAddDialog();
+    } catch (error) {
+      console.error("Error updating contact:", error);
     }
   };
 
-  /***************Edit Kontakt*****************/
 
-  const openDialog = (rowData) => {
-    setSelectedRow(rowData || null);
-    setFormData(rowData || {});
-    setIsDialogOpen(true);
+  const openEditDialog = (rowData) => {
+    // Safely parse companyIs and projectIs if they exist
+    const parsedCompanies =
+      typeof rowData.companyIs === "string" && rowData.companyIs.trim() !== ""
+        ? JSON.parse(rowData.companyIs)
+        : rowData.companies || [];
+
+    const parsedProjects =
+      typeof rowData.projectIs === "string" && rowData.projectIs.trim() !== ""
+        ? JSON.parse(rowData.projectIs)
+        : rowData.projects || [];
+
+    // Merge parsed data into formData
+    setDialogMode("edit");
+    setFormData({
+      ...rowData,
+      companies: parsedCompanies,
+      projects: parsedProjects,
+    });
+
+    setIsAddContactOpen(true); // Reuse the same Add form for editing
   };
 
-  const closeDialog = () => {
-    setSelectedRow(null);
-    setFormData({});
-    setIsDialogOpen(false);
-  };
 
 
   /*###################################### Delete Contact #######################################*/
@@ -261,29 +371,27 @@ const Contact = () => {
   const [imageSrc, setImageSrc] = useState('');
   const [loading, setLoading] = useState(true);
   const [comment, setComment] = useState('');
-  const [prices, setPrices] = useState(['']); // Start with one price field
+  const [priceNote, setPriceNote] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
 
-
+  const [prices, setPrices] = useState([{ description: '', amount: '' }]); // Start with one price field
   const addPriceField = () => {
-    setPrices([...prices, '']);
-  };
-
-  const updatePrice = (index, value) => {
-    const updated = [...prices];
-    updated[index] = value;
-    setPrices(updated);
+    setPrices([...prices, { description: "", amount: "" }]);
   };
 
   const resetPriceFields = () => {
-    setPrices(['']); // Resets to a single empty field
+    setPrices([{ description: "", amount: "" }]);
   };
 
+  const updatePrice = (index, field, value) => {
+    const updated = [...prices];
+    updated[index] = { ...updated[index], [field]: value };
+    setPrices(updated);
+  };
 
-  const buildPdf = async (rowData) => {
-    // Prepare PDF data object
+  const buildPdf = async (mode, rowData) => {
     const pdfData = {
-      pdfCreator: "Adminstraor" || "",
+      pdfCreator: "Administrator", // fixed typo
       clientNamePrefix: rowData.prefix || "",
       clientFirstname: rowData.firstName || "",
       clientLastname: rowData.name || "",
@@ -293,34 +401,52 @@ const Contact = () => {
       clientCountry: rowData.privateAddressCountry || "",
       vatNumber: rowData.vatNumber || "",
       city: rowData.city || "",
-      date: rowData.formattedDate || "", // make sure formattedDate is part of rowData
-      invoiceNumber: invoiceNumber.trim() || "",
+      date: rowData.formattedDate || "",
+      invoiceNumber: invoiceNumber?.trim() || "", // ensure invoiceNumber is in scope
       invoiceTitle: rowData.invoiceTitle || "",
       bankName: rowData.bankName || "",
       iban: rowData.iban || "",
       swift: rowData.swift || "",
-      exchangeRate: rowData.exchangeRate || 1, // default value if missing
-      priceList: rowData.prices || [],
-      comment: comment.trim() || "",
+      exchangeRate: rowData.exchangeRate || 1,
+
+      priceList: prices.map(p => ({
+        description: p.description.trim(),
+        amount: Number(p.amount) || 0
+      })),
+
+      comment: comment?.trim() ? comment.trim() : "Kommentare hinzufügen .....", // ensure comment is in scope
+      priceNote: priceNote?.trim() ? priceNote.trim() : "Pris Notiz .....", // ensure comment is in scope
     };
 
     try {
-      const response = await axiosInstance.post('/pdf/pdf-view', pdfData)
+      if (mode === "pdf") {
+        const response = await axiosInstance.post('/pdf/pdf-generate', pdfData, {
+          responseType: 'arraybuffer',
+        });
+        const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        window.open(pdfUrl);
+        setIsPdfDialogOpen(true);
+      } else {
+        const response = await axiosInstance.post('/pdf/pdf-view', pdfData, {
+          responseType: 'arraybuffer', // 👈 important!
+        });
 
-      const base64Image = response.data;
-      setImageSrc(`data:image/png;base64,${base64Image}`);
-      setIsPdfDialogOpen(true);
-
+        const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        setImageSrc(pdfUrl);
+        setIsPdfDialogOpen(true);
+      }
     } catch (error) {
       console.error("Error generating PDF:", error);
     }
-
   };
+
 
   const openPdfDialog = async (rowData) => {
     setSelectedRow(rowData || null);
     setRowDetails(rowData);
-    buildPdf(rowData);
+    buildPdf("png", rowData);
   };
 
 
@@ -354,22 +480,34 @@ const Contact = () => {
 
   /*###################################### Map coloum name is details dialog #######################################*/
   const keyNameMapping = {
-    rackName: 'Rack Name',
-    rackDetails: 'Rack Details',
-    rackArea: 'Rack Area',
-    epaperCount: 'ePapers',
-    stationCount: 'Stations',
-    createdAt: 'Created At',
-    updatedAt: 'Updated At',
+    prefix: "Anrede",
+    name: "Nachname",
+    firstName: "Vorname",
+    privateAddressStreet: "Strasse",
+    privateAddressPostcode: "PLZ",
+    privateAddressCity: "Ort",
+    privateAddressCountry: "Land",
+    companyPosition: "Position",
+    contactNotes: "Kontakt Notiz",
+    phone: "Telefon (Privat)",
+    phoneCompany: "Telefon (Geschäftlich)",
+    phoneCentral: "Zentrale Telefonnummer",
+    fax: "Fax / E-Mail",
+    email1: "E-Mail 1",
+    email2: "E-Mail 2",
+    companyIs: "Firma",
+    projectIs: "projects",
+    profession: "Beruf",
+    bank: "Bank",
+    bankAccount: "Bank Konto",
+    postcheckAccount: "Post Check Konto",
+    birthDate: "Geburtsdatum",
+    ahvNumber: "AHV Nummer",
+    nationality: "Nationalität",
+    createdAt: "Erstellt am",
+    updatedAt: "Aktualisiert am"
   };
-  /* ######################################### Grid Selected Item ###################################### */
-  // const [selectedRows, setSelectedRows] = useState([]);
-  // const handleSelectionChange = (newSelectionModel) => {
-  //   setSelectedRows(newSelectionModel);
-  // };
-  // const selectedElement = () => {
-  //   return selectedRows.length;
-  // };
+
 
   return (
     <Box>
@@ -378,70 +516,6 @@ const Contact = () => {
         handleExport={""}
         refreshElement={() => fetchData(paginationModel)}
         route={"kontakt"} />
-
-      <Dialog
-        open={isAddRackOpen}
-        onClose={closeAddDialog}
-        closeAfterTransition={true}
-        disableRestoreFocus
-        fullWidth>
-        <DialogTitle>Kontakt hinzufügen</DialogTitle>
-        <IconButton
-          aria-label="close"
-          onClick={closeAddDialog}
-          sx={(theme) => ({
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: "GrayText"
-          })}
-        >
-          <Close />
-        </IconButton>
-
-        <DialogContent>
-          <Box>
-            <TextField
-              name="rackName"
-              value={formData.rackName || ''}
-              onChange={handleChange}
-              required
-              fullWidth
-              id="rackName"
-              label="Rack Name"
-              error={!!errors.rackName}
-              helperText={errors.rackName}
-              autoFocus
-            />
-
-            <TextField
-              fullWidth
-              name="rackDetails"
-              label="Rack Details"
-              value={formData.rackDetails || ''}
-              onChange={handleChange}
-              autoComplete="rack-details"
-              margin="normal"
-            />
-
-            <TextField
-              fullWidth
-              name="rackArea"
-              value={formData.rackArea || ''}
-              id="rackArea"
-              label="Rack Area"
-              onChange={handleChange}
-              autoComplete="rack-area"
-              margin="dense"
-            />
-          </Box>
-        </DialogContent>
-
-        <DialogActions sx={{ pb: 1 }}>
-          <Button onClick={resetRack} variant="outlined" color="secondary">Reset</Button>
-          <Button onClick={saveRack} variant="contained" color="secondary" sx={{ mr: 2 }}>Add Rack</Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Server side paging */}
       <Paper>
@@ -483,102 +557,13 @@ const Contact = () => {
           severity="success"
           variant="filled"
           sx={{ width: '100%' }}>
-          Rack Save Successfully
+          Kontakt Erfolgreich speichern
         </Alert></Snackbar>
 
-      <Dialog open={isDialogOpen}
-        onClose={closeDialog}
-        closeAfterTransition={true}
-        disableRestoreFocus
-      >
-        <DialogTitle>Kontakt hinzufügen</DialogTitle>
-        <DialogContent>
-          <TextField
-            name="rackName"
-            label="Rack Name"
-            value={formData.rackName || ''}
-            onChange={handleChange}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            name="rackDetails"
-            label="Rack Details"
-            value={formData.rackDetails || ''}
-            onChange={handleChange}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            name="rackArea"
-            label="Rack Area"
-            value={formData.rackArea || ''}
-            onChange={handleChange}
-            fullWidth
-            margin="normal"
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeDialog} color="secondary">Cancel</Button>
-          <Button onClick={updateRack} sx={{ mr: 2 }} variant="contained" color="primary">
-            UPDATE
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={isDetailsDialogOpen}
-        onClose={closeDialog}
-        closeAfterTransition={true}
-        disableRestoreFocus
-        fullWidth>
-        <IconButton
-          aria-label="close"
-          onClick={closeDetailsDialog}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: "GrayText"
-          }}>
-          <Close />
-        </IconButton>
-        <DialogTitle>Kontaktdetails</DialogTitle>
-        <DialogContent sx={{ minWidth: 400 }}>
-          <TableContainer>
-            <Table size="small" aria-label="a dense table" sx={{ borderCollapse: 'collapse' }}>
-              <TableBody>
-                {Object.entries(rowDetails)
-                  .filter(([key]) => !['id', 'rackImage', 'storeId'].includes(key)) // Filter out unwanted keys
-                  .map(([key, value]) => {
-                    const displayKey = keyNameMapping[key] || key;
-
-                    return (
-                      <TableRow key={key} sx={{ borderBottom: 'none' }}>
-                        <TableCell align='left' width="100" component="th" sx={{ borderBottom: 'none', padding: '8px 16px' }}>
-                          <strong>{displayKey}:</strong>
-                        </TableCell>
-                        <TableCell align='left' sx={{ borderBottom: 'none' }}>
-                          {value}
-                        </TableCell>
-                      </TableRow>
-                    ); // Ensure no empty lines here
-                  })}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeDetailsDialog}>Cancel</Button>
-        </DialogActions>
-      </Dialog>
-
-
-
-      {/*  Generate Pdf   */}
+      {/*....................Add and Update Contact................ */}
       <Dialog
-        open={isPdfDialogOpen}
-        onClose={closePdfDialog}
+        open={isAddContactOpen}
+        onClose={closeAddDialog}
         closeAfterTransition
         disableRestoreFocus
         fullWidth
@@ -586,68 +571,534 @@ const Contact = () => {
       >
         <IconButton
           aria-label="close"
+          onClick={closeAddDialog}
+          sx={(theme) => ({
+            position: 'absolute',
+            right: 8,
+            top: 8,
+            color: "GrayText"
+          })}
+        >
+          <Close />
+        </IconButton>
+        <DialogTitle> {dialogMode === "add" ? "Kontakt hinzufügen" : "Kontakt bearbeiten"}</DialogTitle>
+        <DialogContent dividers>
+
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={8}>
+
+              <Paper sx={{ mt: 1, p: 2 }} elevation={3}>
+                <Grid container spacing={3}>
+                  {/* === Personal Information === */}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      Persönliche Angaben
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={12} sm={2}>
+                    <TextField
+                      fullWidth
+                      label="Anrede"
+                      name="prefix"
+                      value={formData.prefix ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={5}>
+                    <TextField
+                      fullWidth
+                      label="Vorname"
+                      name="firstName"
+                      value={formData.firstName ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={5}>
+                    <TextField
+                      fullWidth
+                      label="Nachname"
+                      name="name"
+                      value={formData.name ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Strasse"
+                      name="privateAddressStreet"
+                      value={formData.privateAddressStreet ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={3}>
+                    <TextField
+                      fullWidth
+                      label="PLZ"
+                      name="privateAddressPostcode"
+                      value={formData.privateAddressPostcode ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={3}>
+                    <TextField
+                      fullWidth
+                      label="Ort"
+                      name="privateAddressCity"
+                      value={formData.privateAddressCity ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  {/* === Company Information === */}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      Firmeninformationen
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+
+                    <Autocomplete
+                      multiple
+                      id="company-autocomplete"
+                      options={Array.isArray(companies) ? companies : []} // remove warning: Empty string passed to getElementById()
+                      disableCloseOnSelect
+                      getOptionLabel={(option) => option.companyName}
+                      onOpen={handleCompany} //  fetch when opened
+                      value={formData.companies || []}
+                      //handle selection
+                      onChange={(event, value) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          companies: value, // store full selected objects
+                        }))
+                      }
+                      renderOption={(props, option, { selected }) => {
+                        const { key, ...optionProps } = props;
+                        return (
+                          <li key={key} {...optionProps}>
+                            <Checkbox
+                              checked={selected}
+                            />
+                            {option.companyName}
+                          </li>
+                        );
+                      }}
+                      renderInput={(params) => (
+                        <TextField {...params} label="Firma auswählen" placeholder="Firma auswählen" />
+                      )}
+                    />
+                  </Grid>
+
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Position"
+                      name="companyPosition"
+                      value={formData.companyPosition ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  {/* === Contact Information === */}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      Kontaktinformationen
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="Telefon (Privat)"
+                      name="phone"
+                      value={formData.phone ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="Telefon (Geschäftlich)"
+                      name="phoneCompany"
+                      value={formData.phoneCompany ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="Zentrale Telefonnummer"
+                      name="phoneCentral"
+                      value={formData.phoneCentral ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="E-Mail 1"
+                      name="email1"
+                      value={formData.email1 ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="E-Mail 2"
+                      name="email2"
+                      value={formData.email2 ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  {/* === Notes === */}
+                  <Grid item xs={12}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      multiline
+                      rows={2}
+                      label="Kontakt Notiz"
+                      name="contactNotes"
+                      value={formData.contactNotes ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+                  {/* === Bank Info === */}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      Bank Informationen
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="Bank"
+                      name="bank"
+                      value={formData.bank ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="Bank Konto"
+                      name="bankAccount"
+                      value={formData.bankAccount ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="PostCheck Konto"
+                      name="postcheckAccount"
+                      value={formData.postcheckAccount ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  {/* === Additional Info === */}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      Weitere Informationen
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      type="date"
+                      label="Geburtsdatum"
+                      name="birthDate"
+                      InputLabelProps={{ shrink: true }}
+                      value={formData.birthDate ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="Nationalität"
+                      name="nationality"
+                      value={formData.nationality ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="AHV Nummer"
+                      name="ahvNumber"
+                      value={formData.ahvNumber ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+
+                </Grid>
+              </Paper>
+
+            </Grid>
+
+            <Grid item xs={12} sm={4}>
+
+              {/* PROJECT AUTOCOMPLETE */}
+              <Paper sx={{ mt: 2, p: 2 }} elevation={3}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                  Projekt zuordnen
+                </Typography>
+
+                <Autocomplete
+                  multiple
+                  id="project-autocomplete"
+                  options={Array.isArray(projects) ? projects : []} // remove warning: Empty string passed to getElementById()
+                  disableCloseOnSelect
+                  getOptionLabel={(option) => option.projectName}
+                  onOpen={handleProject} //  fetch when opened
+                  value={formData.projects || []}
+                  //handle selection
+                  onChange={(event, value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      projects: value, // store full selected objects
+                    }))
+                  }
+                  renderOption={(props, option, { selected }) => {
+                    const { key, ...optionProps } = props;
+                    return (
+                      <li key={key} {...optionProps}>
+                        <Checkbox
+                          checked={selected}
+                        />
+                        {option.projectName}
+                      </li>
+                    );
+                  }}
+
+                  renderInput={(params) => (
+                    <TextField {...params} label="Projekten" placeholder="Projekten" />
+                  )}
+                />
+              </Paper>
+
+            </Grid>
+          </Grid>
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={closeAddDialog} color="secondary">Abbrechen</Button>
+          {dialogMode === "add" ? (
+            <Button onClick={handleAdd} sx={{ mr: 2 }} variant="contained" color="primary">
+              Hinzufügen
+            </Button>
+          ) : (
+            <Button onClick={updateContact} sx={{ mr: 2 }} variant="contained" color="primary">
+              Aktualisieren
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+
+
+      {/* ........................Show User Information................... */}
+      <Dialog open={isDetailsDialogOpen}
+        onClose={closeDetailsDialog}
+        closeAfterTransition
+        disableRestoreFocus
+        fullWidth
+        maxWidth="md"
+      >
+        <IconButton
+          aria-label="close"
+          onClick={closeDetailsDialog}
+          sx={{ position: 'absolute', right: 8, top: 8, color: "GrayText" }}
+        >
+          <Close />
+        </IconButton>
+        <DialogTitle>Kontaktdetails</DialogTitle>
+        <DialogContent>
+          <TableContainer>
+            <Table size="small" aria-label="contact details" sx={{ borderCollapse: 'collapse' }}>
+              <TableBody>
+                {Object.entries(rowDetails)
+                  .filter(([key]) => !['id', 'projects', 'companies', 'deletedAt'].includes(key))
+                  .map(([key, value]) => {
+                    const displayKey = keyNameMapping[key] || key;
+
+                    // Helper: format value properly
+                    const formatValue = (key, value) => {
+                      if (!value) return '-';
+
+                      // Format date fields
+                      if (['createdAt', 'updatedAt', 'birthDate'].includes(key)) {
+                        const date = new Date(value);
+                        return isNaN(date)
+                          ? value
+                          : date.toLocaleDateString('de-CH', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          });
+                      }
+
+                      // Handle companyIs / projectIs (stringified JSON)
+                      if (key === 'companyIs' || key === 'projectIs') {
+                        try {
+                          const arr = typeof value === 'string' ? JSON.parse(value) : value;
+                          if (!Array.isArray(arr) || arr.length === 0) return '-';
+                          return (
+                            <Stack direction="row" flexWrap="wrap" spacing={1}>
+                              {arr.map((item) => (
+                                <Chip
+                                  key={item.id}
+                                  label={item.companyName || item.projectName}
+                                  color={key === 'companyIs' ? 'primary' : 'secondary'}
+                                  variant="outlined"
+                                  size="small"
+                                />
+                              ))}
+                            </Stack>
+                          );
+                        } catch (e) {
+                          return value;
+                        }
+                      }
+                      return value;
+                    };
+
+                    return (
+                      <TableRow key={key} sx={{ borderBottom: 'none' }}>
+                        <TableCell
+                          align="left"
+                          width="150"
+                          sx={{ borderBottom: 'none', padding: '8px 16px' }}
+                        >
+                          <strong>{displayKey}:</strong>
+                        </TableCell>
+                        <TableCell align="left" sx={{ borderBottom: 'none' }}>
+                          {formatValue(key, value)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={closeDetailsDialog}>Schließen</Button>
+        </DialogActions>
+      </Dialog>
+
+
+      {/* ............................Generate Pdf...................  */}
+      <Dialog
+        open={isPdfDialogOpen}
+        onClose={closePdfDialog}
+        closeAfterTransition
+        disableRestoreFocus
+        fullWidth
+        maxWidth="xl">
+        <IconButton
+          aria-label="close"
           onClick={closePdfDialog}
           sx={{ position: 'absolute', right: 8, top: 8, color: 'GrayText' }}>
           <Close />
         </IconButton>
-
-        <DialogTitle>PDF</DialogTitle>
-
+        <DialogTitle>PDF Preview</DialogTitle>
         <DialogContent>
-          <Button variant="outlined" onClick={addPriceField} sx={{ mt: 1, mr: 1 }}>
-            + Felder hinzufügen
-          </Button>
-          <Button variant="outlined" onClick={resetPriceFields} sx={{ mt: 1, mr: 1 }}>
-            Zurücksetzen
-          </Button>
-          <Button variant="contained" color='primary' onClick={buildPdf} sx={{ mt: 1 }}>
-            Update PDF
-          </Button>
-
           <Grid container spacing={2}>
             <Grid item xs={4}>
+              <ButtonGroup variant="outlined" aria-label="Basic button group">
+                <Button onClick={addPriceField}> <AddCircle /></Button>
+                <Button onClick={resetPriceFields} > <RemoveCircle /></Button>
+                <Button onClick={() => buildPdf("png", selectedRow)}>Vorschau</Button>
+                <Button variant="contained" color='primary' onClick={() => buildPdf("pdf", selectedRow)} >
+                  Generate
+                </Button>
+              </ButtonGroup>
+
               <TextField
                 label="Rechnungsnummer"
                 fullWidth
                 margin="normal"
                 multiline
-                // You can adjust this number as needed
                 value={invoiceNumber}
-                onChange={(e) => setInvoiceNumber(e.target.value)} />
-
+                size="small"
+                onChange={(e) => setInvoiceNumber(e.target.value)}
+              />
 
               <TextField
                 label="Kommentare hinzufügen"
                 fullWidth
                 margin="normal"
                 multiline
-                rows={3} // You can adjust this number as needed
+                rows={2}
                 value={comment}
-                onChange={(e) => setComment(e.target.value)} />
+                size="small"
+                onChange={(e) => setComment(e.target.value)}
+              />
 
+              <TextField
+                label="Preis Notiz"
+                fullWidth
+                margin="normal"
+                multiline
+                rows={1}
+                value={priceNote}
+                size="small"
+                onChange={(e) => setPriceNote(e.target.value)}
+              />
 
-              {prices.map((price, index) => (
-                <TextField
-                  key={index}
-                  label={`Price ${index + 1}`}
-                  fullWidth
-                  margin="normal"
-                  value={price}
-                  onChange={(e) => updatePrice(index, e.target.value)}
-                />
+              {prices.map((item, index) => (
+                <Grid container spacing={2} key={index} alignItems="center">
+                  <Grid item xs={8}>
+                    <TextField
+                      label={`Beschreibung ${index + 1}`}
+                      fullWidth
+                      margin="normal"
+                      size="small"
+                      value={item.description || ""}
+                      onChange={(e) => updatePrice(index, "description", e.target.value)}
+                    />
+                  </Grid>
+                  <Grid item xs={4}>
+                    <TextField
+                      label={`Preis ${index + 1}`}
+                      type="number"
+                      fullWidth
+                      margin="normal"
+                      value={item.amount || ""}
+                      size="small"
+                      onChange={(e) => updatePrice(index, "amount", e.target.value)}
+                    />
+                  </Grid>
+                </Grid>
               ))}
 
-
             </Grid>
-
             <Grid item xs={8}>
-              <Paper sx={{ mt: 2, width: 'fit-content' }} elevation={3}>
+              <Paper sx={{ mt: 2, width: 'fit-content', maxHeight: '90vh', overflow: 'auto' }} elevation={3}>
                 {loading && <CircularProgress />}
-                <img
+                <iframe
+                  allowFullScreen
                   src={imageSrc}
-                  alt="template"
+                  title="PDF Preview"
+                  style={{
+                    display: loading ? 'none' : 'block',
+                    width: '800px',
+                    height: '1000px',
+                    border: 'none',
+                  }}
                   onLoad={() => setLoading(false)}
-                  style={{ display: loading ? 'none' : 'inline' }}
                 />
               </Paper>
             </Grid>
@@ -655,14 +1106,8 @@ const Contact = () => {
         </DialogContent>
 
         <DialogActions>
-            <Button variant="contained" color='primary' onClick={buildPdf} sx={{ mt: 1 }}>
-            Generate PDF
-          </Button>
         </DialogActions>
       </Dialog>
-
-
-
 
       <Dialog
         open={isDeleteDialogOpen}
