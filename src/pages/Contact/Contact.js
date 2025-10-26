@@ -386,9 +386,45 @@ const Contact = () => {
     setPrices(updated);
   };
 
+
+
+  // ---------------- Fetch User (with caching in sessionStorage) ----------------
+
+  const [user, setUser] = useState(null);
+  const fetchUser = async () => {
+    try {
+      // Try to get cached first name from session
+      const cachedFirstName = sessionStorage.getItem("userFirstName");
+      if (cachedFirstName) {
+        setUser({ userFirstName: cachedFirstName });
+        return { userFirstName: cachedFirstName };
+      }
+      //  Fallback to fetching from API
+      const storedEmail = sessionStorage.getItem("userEmail");
+      if (!storedEmail) {
+        return null;
+      }
+      const response = await axiosInstance.get("/users", {
+        params: { email: storedEmail },
+      });
+      const fetchedUser = response.data;
+      if (fetchedUser?.userFirstName) {
+        sessionStorage.setItem("userFirstName", fetchedUser.userFirstName);
+        setUser({ userFirstName: fetchedUser.userFirstName });
+      }
+      return fetchedUser;
+    } catch (error) {
+      console.error("Error loading user:", error);
+      return null;
+    }
+  };
+
+
   const buildPdf = async (mode, rowData) => {
+    // Get user info (cached or fetched)
+    const currentUser = user || (await fetchUser());
     const pdfData = {
-      pdfCreator: "Administrator", // fixed typo
+      pdfCreator: currentUser?.userFirstName || "Administrator",
       clientNamePrefix: rowData.prefix || "",
       clientFirstname: rowData.firstName || "",
       clientLastname: rowData.name || "",
@@ -996,7 +1032,7 @@ const Contact = () => {
           sx={{ position: 'absolute', right: 8, top: 8, color: 'GrayText' }}>
           <Close />
         </IconButton>
-        <DialogTitle>PDF Preview</DialogTitle>
+        <DialogTitle>PDF-Vorschau</DialogTitle>
         <DialogContent>
           <Grid container spacing={2}>
             <Grid item xs={4}>
@@ -1068,20 +1104,36 @@ const Contact = () => {
               ))}
 
             </Grid>
-            <Grid item xs={8}>
+            <Grid item xs={8} display="flex" justifyContent="center" alignItems="center">
+              {loading
+                &&
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+
+                  }}><CircularProgress /><Typography variant="subtitle1" sx={{ mt: 2, color: 'text.secondary' }}>
+                    PDF wird geladen...
+                  </Typography> </Box>
+              }
+
               <Paper sx={{ mt: 2, width: 'fit-content', maxHeight: '90vh', overflow: 'auto' }} elevation={3}>
-                {loading && <CircularProgress />}
                 <iframe
                   allowFullScreen
                   src={imageSrc}
-                  title="PDF Preview"
+                  title="PDF-Vorschau"
                   style={{
                     display: loading ? 'none' : 'block',
-                    width: '800px',
-                    height: '1000px',
+                    width: '500px',
+                    height: '80vh', // automatically fills the Paper height
                     border: 'none',
                   }}
-                  onLoad={() => setLoading(false)}
+                  onLoad={() => {
+                    setTimeout(() => setLoading(false), 5000);
+                  }}
                 />
               </Paper>
             </Grid>
