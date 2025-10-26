@@ -19,7 +19,8 @@ import {
   InputAdornment,
   Switch,
   Autocomplete,
-  Fade
+  Fade,
+  Grid
 } from '@mui/material';
 import { Delete, Edit, Close, Visibility, VisibilityOff, VisibilityOutlined } from '@mui/icons-material';
 import Ribbon from '../../common/Ribbon';
@@ -30,6 +31,7 @@ import FormattedDateTime from '../../components/FormattedDateTime'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DesktopDatePicker } from '@mui/x-date-pickers/DesktopDatePicker';
+import { useSearch } from '../../common/SearchContext';
 
 const User = () => {
   const { axiosInstance } = useAxiosInstance();
@@ -37,6 +39,7 @@ const User = () => {
   const [selectedRow, setSelectedRow] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [rowToDeleteId, setRowToDeleteId] = useState(null);
+  const { searchTerm, searchTrigger } = useSearch();
 
 
 
@@ -76,12 +79,42 @@ const User = () => {
     setPaginationModel(newPaginationModel);
   };
 
+  /*###################################### Search User #######################################*/
+  const searchUsers = useCallback(async () => {
+    if (!searchTerm) return fetchData({ page: 0, pageSize: 20 });
+    setDataLoading(true);
+    try {
+      const response = await axiosInstance.get(`/users/search?q=${encodeURIComponent(searchTerm)}`);
+      setRows(response.data || []);
+    } catch (error) {
+      console.error("Search error:", error);
+    } finally {
+      setDataLoading(false);
+    }
+  }, [axiosInstance, searchTerm, fetchData]);
+
+  // Only triggered manually
+  useEffect(() => {
+    if (searchTrigger > 0) searchUsers();
+  }, [searchTrigger, searchUsers])
+
+
   const columns = [
     {
       field: 'userFirstName',
-      headerName: 'Name',
-      renderHeader: () => <strong>Name</strong>,
-      width: 270,
+      headerName: 'Vorname',
+      renderHeader: () => <strong>Vorname</strong>,
+      width: 200,
+      renderCell: (params) => (
+        <Typography style={{ fontSize: '14px' }} >{params.value}</Typography>
+      ),
+    },
+
+    {
+      field: 'userLastName',
+      headerName: 'Nachname',
+      renderHeader: () => <strong>Nachname</strong>,
+      width: 200,
       renderCell: (params) => (
         <Typography style={{ fontSize: '14px' }} >{params.value}</Typography>
       ),
@@ -176,7 +209,7 @@ const User = () => {
     {
       field: 'lastLogin',
       headerName: 'Last Seen',
-      renderHeader: () => <strong>Last Seen</strong>, 
+      renderHeader: () => <strong>Last Seen</strong>,
       width: 180,
       flex: 1,
       renderCell: (params) => {
@@ -384,8 +417,6 @@ const User = () => {
     }
   };
 
-
-
   /* ####################################### Role List ######################################*/
   const [roles, setRoles] = useState([]);
 
@@ -416,23 +447,33 @@ const User = () => {
 
   /*###################################### Update User #######################################*/
   const updateUser = async () => {
-    const formErrors = validateForm();
-    if (Object.keys(formErrors).length === 0) {
-      try {
-        const updatedRows = rows.map((row) =>
-          row.id === selectedRow.id ? { ...row, ...formData } : row,
-        );
-        await axiosInstance.put(`/users/${formData.id}`, formData);
-        setRows(updatedRows);
-        setOpen(true); // Show Success Message
-        closeDialog();
-      } catch (error) {
-        console.log(error);
+
+    try {
+      if (!formData.id) {
+        console.error("No user ID found for update");
+        return;
       }
-    } else {
-      setErrors(formErrors);
+      // Ensure payload matches backend expectation
+      const payload = {
+        ...selectedRow,
+        ...formData,
+        userRoles: typeof formData.userRoles === "object" ? formData.userRoles.label : formData.userRoles,
+        validUntil: formData.validUntil
+          ? new Date(formData.validUntil).toISOString()
+          : null,
+      };
+      await axiosInstance.put(`/users/${payload.id}`, payload);
+      // Update local state immediately
+      setRows((prev) =>
+        prev.map((row) => (row.id === payload.id ? payload : row))
+      );
+      setOpen(true);
+      closeDialog(true);
+    } catch (error) {
+      console.error("Update failed:", error);
     }
   };
+
 
   const openDialog = (rowData) => {
     setSelectedRow(rowData || null);
@@ -522,7 +563,7 @@ const User = () => {
         maxWidth="md"
         closeAfterTransition={true}
         disableRestoreFocus>
-        <DialogTitle>Add User</DialogTitle>
+        <DialogTitle>Benutzer hinzufügen</DialogTitle>
         <IconButton
           aria-label="close"
           onClick={closeAddDialog}
@@ -543,11 +584,23 @@ const User = () => {
             required
             fullWidth
             id="userFirstName"
-            label="Name"
+            label="Vorname"
             error={!!errors.userFirstName}
             helperText={errors.userFirstName}
             autoFocus
           />
+
+          <TextField
+            name="userLastName"
+            value={formData.userLastName || ''}
+            onChange={handleChange}
+            required
+            fullWidth
+            margin="normal"
+            id="userLastName"
+            label="Nachname"
+          />
+
           <TextField
             name="userEmail"
             value={formData.userEmail || ''}
@@ -612,8 +665,8 @@ const User = () => {
         </DialogContent>
         <DialogActions sx={{ pl: 3, pb: 2, mt: 0 }}>
           <Button onClick={closeAddDialog} aria-label="close" color="secondary" variant="outlined" sx={{ ml: 2 }}>Cancle</Button>
-          <Button onClick={resetUser} sx={{ ml: 2 }} color="primary" variant="outlined">Reset</Button>
-          <Button onClick={addUser} variant="contained" color="primary" sx={{ mr: 2 }}>Add USER</Button>
+          <Button onClick={resetUser} sx={{ ml: 2 }} color="primary" variant="outlined">Zurücksetzen</Button>
+          <Button onClick={addUser} variant="contained" color="primary" sx={{ mr: 2 }}>Hinzufügen</Button>
         </DialogActions>
       </Dialog>
 
@@ -661,34 +714,71 @@ const User = () => {
         </Fade>
       </Paper>
 
-      <Dialog open={isDialogOpen}
+
+
+      {/*..........................User Update...................... */}
+      <Dialog
+        open={isDialogOpen}
         closeAfterTransition={true}
-
         disableRestoreFocus
-        onClose={closeDialog}>
-        <DialogTitle>Edit User</DialogTitle>
-        <DialogContent sx={{ minWidth: 400 }}>
+        onClose={closeDialog}
+      >
+        <IconButton
+          aria-label="close"
+          onClick={closeDialog}
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+            color: "GrayText"
+          }}>
+          <Close />
+        </IconButton>
 
+        <DialogTitle>User bearbeiten</DialogTitle>
+
+        <DialogContent sx={{ minWidth: 400 }}>
           <Box sx={{ mt: 1 }}>
-            {/* 1Role Selection */}
-            <Typography backgroundColor="#000" color="white" sx={{ mb: 1, maxWidth: 200, borderRadius: 1, py: 0.5, px: 1, }}>
-              Active Role: {formData.userRoles || 'N/A'}
-            </Typography>
-            {/* Validity Date */}
+            {/* ---------------- Name Fields ---------------- */}
+            <Grid container spacing={2} sx={{ mb: 2 }}>
+              <Grid item xs={12} sm={12}>
+                <TextField
+                  fullWidth
+                  name="userFirstName"
+                  label="First Name"
+                  value={formData.userFirstName ?? ""}
+                  onChange={handleChange}
+                  error={!!errors.userFirstName}
+                  helperText={errors.userFirstName}
+                />
+              </Grid>
+              <Grid item xs={12} sm={12}>
+                <TextField
+                  fullWidth
+                  name="userLastName"
+                  label="Last Name"
+                  value={formData.userLastName ?? ""}
+                  onChange={handleChange}
+                  error={!!errors.userLastName}
+                  helperText={errors.userLastName}
+                />
+              </Grid>
+            </Grid>
+
             <Typography
               backgroundColor="#000"
               color="white"
-              sx={{ mt: 2, mb: 1, maxWidth: 300, px: 1, py: 0.5, borderRadius: 1 }}
+              sx={{
+                mb: 1,
+                maxWidth: 200,
+                borderRadius: 1,
+                py: 0.5,
+                px: 1,
+              }}
             >
-              Active Validity:{' '}
-              {formData.validUntil
-                ? new Date(formData.validUntil).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: '2-digit',
-                })
-                : 'N/A'}
+              Role: {formData.userRoles || "N/A"}
             </Typography>
+
             <Box sx={{ mb: 2 }}>
               <Autocomplete
                 options={roles}
@@ -710,6 +800,21 @@ const User = () => {
               />
             </Box>
 
+            {/* ---------------- Validity ---------------- */}
+            <Typography
+              color="primary"
+              sx={{ mt: 2, mb: 1, maxWidth: 300, px: 1, py: 0.5, borderRadius: 1 }}
+            >
+              Active Validity:{" "}
+              {formData.validUntil
+                ? new Date(formData.validUntil).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "2-digit",
+                })
+                : "N/A"}
+            </Typography>
+
             <LocalizationProvider dateAdapter={AdapterDateFns}>
               <DesktopDatePicker
                 label="Valid Until"
@@ -721,21 +826,28 @@ const User = () => {
                     validUntil: newValue ? newValue.toISOString() : null,
                   }))
                 }
-                renderInput={(params) => <TextField {...params} fullWidth margin="dense" />}
+                renderInput={(params) => (
+                  <TextField {...params} fullWidth margin="dense" />
+                )}
               />
             </LocalizationProvider>
-
           </Box>
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={closeDialog} variant="outlined">Cancel</Button>
+          <Button onClick={closeDialog} variant="outlined">
+            Cancel
+          </Button>
           <Button onClick={updateUser} variant="contained" color="secondary">
             Update
           </Button>
         </DialogActions>
-      </Dialog >
+      </Dialog>
 
+
+
+
+      {/* .....................User Details........................ */}
       <Dialog open={isDetailsDialogOpen}
         onClose={closeDetailsDialog}
         closeAfterTransition={true}

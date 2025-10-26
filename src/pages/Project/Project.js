@@ -26,6 +26,7 @@ import Ribbon from '../../common/Ribbon';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useAxiosInstance } from '../Auth/AxiosProvider';
 import CustomPagination from '../../components/CustomPagination'
+import { useSearch } from '../../common/SearchContext';
 
 
 const Project = () => {
@@ -33,6 +34,7 @@ const Project = () => {
   const [rows, setRows] = useState([]);
   const [highlightedRowIds, setHighlightedRowIds] = useState([]); // State for tracking highlighted rows
   const [rowToDeleteId, setRowToDeleteId] = useState(null);
+  const { searchTerm, searchTrigger } = useSearch();
 
 
   /*###################################### Load All Data On Page Load #######################################*/
@@ -69,6 +71,26 @@ const Project = () => {
   const handlePaginationModelChange = (newPaginationModel) => {
     setPaginationModel(newPaginationModel);
   };
+
+    /*###################################### Search Project #######################################*/
+    const searchProjects = useCallback(async () => {
+      if (!searchTerm) return fetchData({ page: 0, pageSize: 20 });
+      setDataLoading(true);
+      try {
+        const response = await axiosInstance.get(`/projects/search?q=${encodeURIComponent(searchTerm)}`);
+        setRows(response.data || []);
+      } catch (error) {
+        console.error("Search error:", error);
+      } finally {
+        setDataLoading(false);
+      }
+    }, [axiosInstance, searchTerm, fetchData]);
+  
+    // Only triggered manually
+    useEffect(() => {
+      if (searchTrigger > 0) searchProjects();
+    }, [searchTrigger, searchProjects])
+  
 
   const columns = [
     {

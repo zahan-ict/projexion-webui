@@ -9,14 +9,16 @@ import {
   Divider,
   Tabs,
   Tab,
-  TextField
+  TextField,
+  InputAdornment,
+  IconButton,
+  Alert,
 } from "@mui/material";
 import { useAxiosInstance } from "../Auth/AxiosProvider";
 import { styled } from "@mui/material/styles";
-import {
-  Person
-} from '@mui/icons-material';
+import { Person, Visibility, VisibilityOff } from "@mui/icons-material";
 
+// ---------------- Sidebar and Layout Styles ----------------
 const Sidebar = styled(Paper)(({ theme }) => ({
   width: 220,
   height: "100%",
@@ -30,33 +32,39 @@ const MainContent = styled(Box)(({ theme }) => ({
   padding: theme.spacing(4),
 }));
 
+// ---------------- Component ----------------
 const UserProfilePage = () => {
   const { axiosInstance } = useAxiosInstance();
   const [tabValue, setTabValue] = useState(0);
   const [user, setUser] = useState(null);
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
 
+  // ---------------- Fetch User Info ----------------
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const email = "zahan.link@gmail.com";
-        const response = await axiosInstance.get("/users", { params: { email } });
+        const storedEmail = sessionStorage.getItem("userEmail");
+        if (!storedEmail) {
+          console.warn("No user email found in session storage");
+          return;
+        }
+
+        const response = await axiosInstance.get("/users", {
+          params: { email: storedEmail },
+        });
+
         setUser(response.data);
       } catch (error) {
         console.error("Error loading user:", error);
       }
     };
+
     fetchUser();
   }, [axiosInstance]);
 
   const FormattedDateTime = ({ value }) => {
     if (!value) return "N/A";
     const date = new Date(value);
-    return date.toLocaleString("en-US", {
+    return date.toLocaleString("de-DE", {
       year: "numeric",
       month: "short",
       day: "2-digit",
@@ -67,32 +75,79 @@ const UserProfilePage = () => {
 
   const handleTabChange = (_, newValue) => setTabValue(newValue);
 
+  // ---------------- Password Update Logic ----------------
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [updating, setUpdating] = useState(false);
+  const [showPassword, setShowPassword] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false,
+  });
+  const [errorMsg, setErrorMsg] = useState("");
+
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
     setPasswordData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const togglePasswordVisibility = (field) => {
+    setShowPassword((prev) => ({ ...prev, [field]: !prev[field] }));
+  };
+
   const handlePasswordUpdate = async () => {
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert("New password and confirmation do not match!");
+    setErrorMsg(""); // reset error message
+
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setErrorMsg("⚠️ Bitte füllen Sie alle Passwortfelder aus.");
       return;
     }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setErrorMsg("⚠️ Neues Passwort und Bestätigung stimmen nicht überein!");
+      return;
+    }
+
+    setUpdating(true);
     try {
-      await axiosInstance.put("/users/update-password", {
-        email: user.userEmail,
+      const email = sessionStorage.getItem("userEmail");
+      if (!email) {
+        setErrorMsg("⚠️ Sitzung abgelaufen. Bitte erneut anmelden.");
+        return;
+      }
+
+      const response = await axiosInstance.put("/users/update-password", {
+        email,
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
       });
-      alert("Password updated successfully!");
-      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+
+      if (response.status === 200) {
+        setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        alert("✅ Passwort erfolgreich aktualisiert!");
+      } else {
+        setErrorMsg("⚠️ Fehler beim Aktualisieren des Passworts.");
+      }
     } catch (error) {
       console.error("Error updating password:", error);
-      alert("Failed to update password!");
+      setErrorMsg(error.response?.data?.message || "❌ Passwort konnte nicht geändert werden!");
+    } finally {
+      setUpdating(false);
     }
   };
 
-  if (!user) return <Typography p={4}>Loading...</Typography>;
+  // ---------------- Loading / No Data ----------------
+  if (!user)
+    return (
+      <Typography p={4} color="text.secondary">
+        Benutzerinformationen werden geladen...
+      </Typography>
+    );
 
+  // ---------------- Render ----------------
   return (
     <Box display="flex" height="80vh" bgcolor="#fafafa" margin={4}>
       {/* Sidebar */}
@@ -103,38 +158,34 @@ const UserProfilePage = () => {
           onChange={handleTabChange}
           sx={{ height: "100%", paddingTop: 2 }}
         >
-          <Tab label="Profile" />
-          <Tab label="Security" />
-          {/* <Tab label="Notification" />
-          <Tab label="Billing" />
-          <Tab label="Integration" /> */}
+          <Tab label="Profil" />
+          <Tab label="Sicherheit" />
         </Tabs>
       </Sidebar>
 
       {/* Main Content */}
       <MainContent>
-        {/* Profile Tab */}
+        {/* ---------------- Profile Tab ---------------- */}
         {tabValue === 0 && (
           <>
             <Typography variant="h6" fontWeight="bold" mb={3}>
-              Personal information
+              Persönliche Informationen
             </Typography>
             <Box display="flex" alignItems="center" gap={3} mb={4}>
               <Avatar
-
                 src={user.profileImage || ""}
                 alt={user.userFirstName}
                 sx={{ width: 90, height: 90 }}
               >
                 <Person />
-                {/* {user.userFirstName?.[0]?.toUpperCase()} */}
               </Avatar>
+              <Typography variant="h6">{user.userFirstName || "Benutzer"}</Typography>
             </Box>
 
             <Grid container spacing={3}>
               <Grid item xs={12} sm={6}>
                 <Typography variant="subtitle2" color="text.secondary" mb={0.5}>
-                  First name
+                  Vorname
                 </Typography>
                 <TextField
                   fullWidth
@@ -143,9 +194,10 @@ const UserProfilePage = () => {
                   sx={{ backgroundColor: "#f5f5f5", borderRadius: 2 }}
                 />
               </Grid>
+
               <Grid item xs={12} sm={6}>
                 <Typography variant="subtitle2" color="text.secondary" mb={0.5}>
-                  Email
+                  E-Mail
                 </Typography>
                 <TextField
                   fullWidth
@@ -157,7 +209,7 @@ const UserProfilePage = () => {
 
               <Grid item xs={12} sm={6}>
                 <Typography variant="subtitle2" color="text.secondary" mb={0.5}>
-                  Mobile
+                  Mobilnummer
                 </Typography>
                 <TextField
                   fullWidth
@@ -166,9 +218,10 @@ const UserProfilePage = () => {
                   sx={{ backgroundColor: "#f5f5f5", borderRadius: 2 }}
                 />
               </Grid>
+
               <Grid item xs={12} sm={6}>
                 <Typography variant="subtitle2" color="text.secondary" mb={0.5}>
-                  Role
+                  Rolle
                 </Typography>
                 <TextField
                   fullWidth
@@ -177,104 +230,125 @@ const UserProfilePage = () => {
                   sx={{ backgroundColor: "#f5f5f5", borderRadius: 2 }}
                 />
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="subtitle2" color="text.secondary" mb={0.5}>
-                  Verified
-                </Typography>
-                <TextField
-                  fullWidth
-                  value={user.isVerified ? "Yes" : "No"}
-                  InputProps={{ readOnly: true }}
-                  sx={{ backgroundColor: "#f5f5f5", borderRadius: 2 }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="subtitle2" color="text.secondary" mb={0.5}>
-                  Status
-                </Typography>
-                <TextField
-                  fullWidth
-                  value={user.isActive ? "Active" : "Inactive"}
-                  InputProps={{ readOnly: true }}
-                  sx={{ backgroundColor: "#f5f5f5", borderRadius: 2 }}
-                />
-              </Grid>
             </Grid>
-            <Divider sx={{ mt: 20, mb: 1 }} />
 
-
+            <Divider sx={{ mt: 10, mb: 2 }} />
             <Typography variant="subtitle2" color="text.secondary">
-              Valid Until: <FormattedDateTime value={user.validUntil} />
+              Gültig bis: <FormattedDateTime value={user.validUntil} />
             </Typography>
-
-
           </>
         )}
 
-        {/* Security Tab */}
+        {/* ---------------- Security Tab ---------------- */}
         {tabValue === 1 && (
           <>
             <Typography variant="h6" fontWeight="bold" mb={1}>
-              Password
+              Passwort ändern
             </Typography>
             <Typography color="text.secondary" mb={4}>
-              Remember, your password is your digital key to your account. Keep it safe, keep it secure!
+              Denken Sie daran: Ihr Passwort ist Ihr digitaler Schlüssel zu Ihrem Konto. Bewahren Sie es sicher auf!
             </Typography>
 
+            {errorMsg && (
+              <Alert severity="error" sx={{ mb: 3 }}>
+                {errorMsg}
+              </Alert>
+            )}
+
             <Grid container spacing={3} mb={5}>
+              {/* Aktuelles Passwort */}
               <Grid item xs={12}>
                 <Typography variant="subtitle2" color="text.secondary" mb={0.5}>
-                  Current password
+                  Aktuelles Passwort
                 </Typography>
                 <TextField
                   fullWidth
                   name="currentPassword"
-                  type="password"
+                  type={showPassword.currentPassword ? "text" : "password"}
                   value={passwordData.currentPassword}
                   onChange={handlePasswordChange}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => togglePasswordVisibility("currentPassword")}
+                          edge="end"
+                        >
+                          {showPassword.currentPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
                   sx={{ backgroundColor: "#f5f5f5", borderRadius: 2 }}
                 />
               </Grid>
 
+              {/* Neues Passwort */}
               <Grid item xs={12}>
                 <Typography variant="subtitle2" color="text.secondary" mb={0.5}>
-                  New password
+                  Neues Passwort
                 </Typography>
                 <TextField
                   fullWidth
                   name="newPassword"
-                  type="password"
+                  type={showPassword.newPassword ? "text" : "password"}
                   value={passwordData.newPassword}
                   onChange={handlePasswordChange}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => togglePasswordVisibility("newPassword")}
+                          edge="end"
+                        >
+                          {showPassword.newPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
                   sx={{ backgroundColor: "#f5f5f5", borderRadius: 2 }}
                 />
               </Grid>
 
+              {/* Neues Passwort bestätigen */}
               <Grid item xs={12}>
                 <Typography variant="subtitle2" color="text.secondary" mb={0.5}>
-                  Confirm new password
+                  Neues Passwort bestätigen
                 </Typography>
                 <TextField
                   fullWidth
                   name="confirmPassword"
-                  type="password"
+                  type={showPassword.confirmPassword ? "text" : "password"}
                   value={passwordData.confirmPassword}
                   onChange={handlePasswordChange}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => togglePasswordVisibility("confirmPassword")}
+                          edge="end"
+                        >
+                          {showPassword.confirmPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
                   sx={{ backgroundColor: "#f5f5f5", borderRadius: 2 }}
                 />
               </Grid>
             </Grid>
 
-            {/* <Box display="flex" justifyContent="flex-end">
+            <Box display="flex" justifyContent="flex-end">
               <Button
                 variant="contained"
-                color="success"
+                color="secondary"
                 sx={{ borderRadius: 2, px: 4 }}
+                disabled={updating}
                 onClick={handlePasswordUpdate}
               >
-                Update
+                {updating ? "Aktualisieren..." : "Passwort aktualisieren"}
               </Button>
-            </Box> */}
+            </Box>
           </>
         )}
       </MainContent>

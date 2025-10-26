@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { styled } from '@mui/material/styles';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Toolbar,
   AppBar,
@@ -8,21 +8,18 @@ import {
   Menu,
   MenuItem,
   IconButton,
-  Autocomplete,
-  CircularProgress,
   TextField,
 } from '@mui/material';
 import {
   Search as SearchIcon,
   Logout,
   Menu as MenuIcon,
-  Person
+  Person,
 } from '@mui/icons-material';
 import { useLanguage } from '../language/LanguageContext';
 import { useAxiosInstance } from '../pages/Auth/AxiosProvider';
-
 import { useAuth } from '../pages/Auth/AuthProvider';
-
+import { useSearch } from './SearchContext';
 
 const drawerWidth = 180;
 
@@ -51,117 +48,105 @@ const Header = ({ handleDrawerToggle, open, route }) => {
   const { axiosInstance } = useAxiosInstance();
   const { language, switchLanguage, t } = useLanguage();
   const navigate = useNavigate();
+  const { logout } = useAuth();
+  const { searchTerm, setSearchTerm, triggerSearch } = useSearch();
 
-  // Menus
+  // Menu states
   const [langAnchorEl, setLangAnchorEl] = useState(null);
   const [userAnchorEl, setUserAnchorEl] = useState(null);
+  const [inputValue, setInputValue] = useState(searchTerm);
 
-  const handleOpenLangMenu = (event) => setLangAnchorEl(event.currentTarget);
-  const handleCloseLangMenu = () => setLangAnchorEl(null);
-
+  // Menu handlers
   const handleOpenUserMenu = (event) => setUserAnchorEl(event.currentTarget);
   const handleCloseUserMenu = () => setUserAnchorEl(null);
 
-  const { logout } = useAuth ();
-
   const handleProfileClick = () => {
-    navigate('/userprofile'); // Navigate to your user profile page
+    navigate('/userprofile');
     handleCloseUserMenu();
   };
 
-  const handleLanguageChange = (lang) => {
-    switchLanguage(lang);
-    localStorage.setItem('language', lang);
-    handleCloseLangMenu();
+  /*########################### Search ###########################*/
+  const handleInputChange = (e) => setInputValue(e.target.value);
+
+  const handleSearchClick = () => {
+    setSearchTerm(inputValue.trim());
+    triggerSearch(); // manually trigger search
   };
 
-  const languages = [
-    { code: 'en', label: 'English' },
-    { code: 'de', label: 'Deutsch' },
-  ];
-
-  /*########################### Search ###########################*/
-  const [options, setOptions] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [inputValue, setInputValue] = useState("");
-
-  const searchData = useCallback(() => {
-    if (inputValue.length < 2) return;
-    setLoading(true);
-    axiosInstance
-      .get(`projects/search?query=${inputValue}`)
-      .then((response) => {
-        if (response.data) setOptions(response.data);
-      })
-      .catch((error) => console.error('Error fetching data:', error))
-      .finally(() => setLoading(false));
-  }, [inputValue, axiosInstance]);
-
-  useEffect(() => {
-    searchData();
-  }, [searchData]);
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleSearchClick(); // press Enter to search
+  };
 
   return (
     <Box sx={{ display: 'flex' }}>
-{/* <MuiAppBar sx={{minHeight:300}} color="inherit" position="fixed" open={open} elevation={0}> */}
-    <MuiAppBar color="inherit" position="fixed" open={open} elevation={0}>
-        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {/* Left Section */}
+      <MuiAppBar color="inherit" position="fixed" open={open} elevation={0}>
+        <Toolbar
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          {/* === Left Section === */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <IconButton color="inherit" edge="start" onClick={handleDrawerToggle}>
               <MenuIcon />
             </IconButton>
           </Box>
 
-          {/* Center Search */}
+          {/* === Center Search Bar === */}
           <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>
-            <Autocomplete
-              freeSolo
-              options={options}
-              getOptionLabel={(option) => option.name || option}
-              onInputChange={(e, newInputValue) => setInputValue(newInputValue)}
-              loading={loading}
-              renderInput={(params) => (
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    backgroundColor: "#f7f7f7",
-                    border: "1px solid #ddd",
-                    borderRadius: 1,
-                    px: 1,
-                    py: 0.5,
-                    minWidth: 190,
-                    maxWidth: "80vw",
-                    "@media (min-width: 1200px)": { minWidth: 500 },
-                  }}
-                >
-                  <SearchIcon sx={{ color: "gray", mr: 1 }} />
-                  <TextField
-                    {...params}
-                    placeholder={t.search}
-                    variant="standard"
-                    fullWidth
-                    InputProps={{
-                      ...params.InputProps,
-                      disableUnderline: true,
-                      endAdornment: (
-                        <>
-                          {loading ? <CircularProgress color="inherit" size={20} /> : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      ),
-                    }}
-                  />
-                </Box>
-              )}
-            />
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                backgroundColor: '#f7f7f7',
+                border: '1px solid #ddd',
+                borderRadius: 3,
+                px: 1,
+                py: 0.3,
+                minWidth: 200,
+                maxWidth: '60vw',
+                transition: 'all 0.3s ease',
+                '&:focus-within': {
+                  backgroundColor: '#fff',
+                  borderColor: '#1976d2',
+                  minWidth: 450, // expands on focus
+                  boxShadow: '0 0 5px rgba(25, 118, 210, 0.3)',
+                },
+              }}
+            >
+              <SearchIcon sx={{ color: 'gray', mr: 1 }} />
+              <TextField
+                placeholder="Suche..."
+                variant="standard"
+                fullWidth
+                value={inputValue}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                InputProps={{
+                  disableUnderline: true,
+                  sx: { fontSize: '0.95rem' },
+                }}
+              />
+              <IconButton
+                onClick={handleSearchClick}
+                color="primary"
+                sx={{
+                  ml: 0.5,
+                  backgroundColor: '#1d1f21ff',
+                  color: 'white',
+                  '&:hover': { backgroundColor: '#1565c0' },
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                <SearchIcon fontSize="small" />
+              </IconButton>
+            </Box>
           </Box>
 
-          {/* Right Section */}
+          {/* === Right Section === */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-     
-            {/* Profile Menu */}
             <IconButton color="inherit" onClick={handleOpenUserMenu}>
               <Person />
             </IconButton>

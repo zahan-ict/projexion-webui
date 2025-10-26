@@ -26,6 +26,7 @@ import Ribbon from '../../common/Ribbon';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useAxiosInstance } from '../Auth/AxiosProvider';
 import CustomPagination from '../../components/CustomPagination';
+import { useSearch } from '../../common/SearchContext';
 
 const Company = () => {
   const { axiosInstance } = useAxiosInstance();
@@ -37,6 +38,7 @@ const Company = () => {
   const [rowCount, setRowCount] = useState(0);
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
+  const { searchTerm, searchTrigger } = useSearch();
 
 
   /* Dialogs */
@@ -72,6 +74,26 @@ const Company = () => {
     setPaginationModel(newPaginationModel);
   };
 
+  /*###################################### Search Company #######################################*/
+  const searchCompanies = useCallback(async () => {
+    if (!searchTerm) return fetchData({ page: 0, pageSize: 20 });
+    setDataLoading(true);
+    try {
+      const response = await axiosInstance.get(`/companies/search?q=${encodeURIComponent(searchTerm)}`);
+      setRows(response.data || []);
+    } catch (error) {
+      console.error("Search error:", error);
+    } finally {
+      setDataLoading(false);
+    }
+  }, [axiosInstance, searchTerm, fetchData]);
+
+  // Only triggered manually
+  useEffect(() => {
+    if (searchTrigger > 0) searchCompanies();
+  }, [searchTrigger, searchCompanies])
+
+
   /* ---------------- TABLE COLUMNS ---------------- */
   const columns = [
     {
@@ -99,7 +121,7 @@ const Company = () => {
       flex: 1
     },
 
-       {
+    {
       field: 'companyCity',
       headerName: 'Stadt',
       renderHeader: () => <strong>Stadt</strong>,
@@ -306,8 +328,8 @@ const Company = () => {
                       name="companyMail"
                       value={formData.companyMail ?? ""}
                       onChange={handleChange}
-                      // error={!!errors.companyMail}
-                      // helperText={errors.companyMail}
+                    // error={!!errors.companyMail}
+                    // helperText={errors.companyMail}
                     />
                   </Grid>
 

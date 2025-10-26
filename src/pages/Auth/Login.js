@@ -61,11 +61,9 @@ const Login = () => {
     setErrors({}); // reset form errors
     try {
       const data = await authService.loginService(formData.username, formData.password);
-
       if (data?.accessToken) {
-        
         login(data.accessToken); // store JWT in memory
-
+        sessionStorage.setItem("userEmail", formData.username);
         navigate('/dashboard');
       } else {
         setErrors({ form: 'Login failed, please try again' });

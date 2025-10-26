@@ -5,6 +5,7 @@ import './theme/style.css'
 import { AuthProvider } from './pages/Auth/AuthProvider';
 import { AxiosProvider } from './pages/Auth/AxiosProvider';
 import { LanguageProvider } from './language/LanguageContext';
+import { SearchProvider } from './common/SearchContext';
 
 const App = () => {
   return (
@@ -12,7 +13,9 @@ const App = () => {
       <LanguageProvider>
         <ThemeProvider theme={theme}>
           <AxiosProvider>
-            <RouteList />
+            <SearchProvider>
+              <RouteList />
+            </SearchProvider>
           </AxiosProvider>
         </ThemeProvider>
       </LanguageProvider>
