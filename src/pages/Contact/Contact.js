@@ -26,7 +26,7 @@ import {
   Checkbox,
   Chip
 } from '@mui/material';
-import { Delete, Close, VisibilityOutlined, Edit, PictureAsPdf, AddCircle, RemoveCircle, CheckBox, CheckBoxOutlineBlank } from '@mui/icons-material';
+import { Delete, Close, VisibilityOutlined, Edit, PictureAsPdf, AddCircle, RemoveCircle } from '@mui/icons-material';
 import Ribbon from '../../common/Ribbon';
 import { useAxiosInstance } from '../Auth/AxiosProvider';
 import CustomPagination from '../../components/CustomPagination'
@@ -131,27 +131,6 @@ const Contact = () => {
       ),
     },
   ];
-
-  /*###################################### On change event #######################################*/
-  // const [formData, setFormData] = useState({});
-  // const handleChange = (e) => {
-  //   const { name, value } = e.target;
-  //   setFormData({ ...formData, [name]: value });
-
-  //   // Clear the specific field error when the user starts typing
-  //   setErrors((prevErrors) => ({
-  //     ...prevErrors,
-  //     [name]: '',
-  //   }));
-  // };
-
-  /*###################################### Valid form #######################################*/
-  const [errors, setErrors] = useState({});
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.rackName) newErrors.rackName = 'Rack Name is required';
-    return newErrors;
-  };
 
   /*###################################### Add Contact #######################################*/
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
@@ -283,9 +262,6 @@ const Contact = () => {
         createdAt: undefined,
         updatedAt: undefined,
       };
-
-      console.log("Updating contact with payload:", payload);
-
       await axiosInstance.put(`/contacts/${formData.id}`, payload);
       fetchData(paginationModel); // refresh table
       setOpen(true);
@@ -315,7 +291,6 @@ const Contact = () => {
       companies: parsedCompanies,
       projects: parsedProjects,
     });
-
     setIsAddContactOpen(true); // Reuse the same Add form for editing
   };
 
@@ -455,17 +430,6 @@ const Contact = () => {
     setSelectedRow(null);
     setRowDetails({});
     setIsPdfDialogOpen(false);
-  };
-
-
-  /*###################################### Reset Kontakt #######################################*/
-  const resetRack = () => {
-    setFormData({
-      rackName: '',
-      rackDetails: '',
-      rackArea: ''
-    });
-    setErrors({});
   };
 
 
@@ -841,11 +805,8 @@ const Contact = () => {
                       onChange={handleChange}
                     />
                   </Grid>
-
-
                 </Grid>
               </Paper>
-
             </Grid>
 
             <Grid item xs={12} sm={4}>

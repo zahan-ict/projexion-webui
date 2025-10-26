@@ -19,9 +19,9 @@ import {
   TableRow,
   Snackbar,
   Alert,
-  Fade
+  Grid
 } from '@mui/material';
-import { Delete, Close, VisibilityOutlined, Edit, Router, CastConnected } from '@mui/icons-material';
+import { Delete, Close, VisibilityOutlined, Edit } from '@mui/icons-material';
 import Ribbon from '../../common/Ribbon';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useAxiosInstance } from '../Auth/AxiosProvider';
@@ -32,10 +32,8 @@ const Project = () => {
   const { axiosInstance } = useAxiosInstance();
   const [rows, setRows] = useState([]);
   const [highlightedRowIds, setHighlightedRowIds] = useState([]); // State for tracking highlighted rows
-  const [selectedRow, setSelectedRow] = useState(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [rowToDeleteId, setRowToDeleteId] = useState(null);
-  const [isAddRackOpen, setIsAddRackOpen] = useState(false);
+
 
   /*###################################### Load All Data On Page Load #######################################*/
   const [dataLoading, setDataLoading] = useState(true);
@@ -78,7 +76,7 @@ const Project = () => {
       headerName: 'Title',
       renderHeader: () => <strong>Title</strong>,
       width: 300,
-       flex: 1,
+      flex: 1,
       cellClassName: (params) => (highlightedRowIds.includes(params.id) ? 'bold' : 'normal'),
     },
     {
@@ -86,7 +84,7 @@ const Project = () => {
       headerName: 'Jahr',
       renderHeader: () => <strong>Jahr</strong>,
       width: 300,
-       flex: 1,
+      flex: 1,
       cellClassName: (params) => (highlightedRowIds.includes(params.id) ? 'bold' : 'normal'),
     },
 
@@ -96,7 +94,7 @@ const Project = () => {
       renderHeader: () => <strong>Land</strong>,
       width: 150,
       flex: 1,
-     cellClassName: (params) => (highlightedRowIds.includes(params.id) ? 'bold' : 'normal'),
+      cellClassName: (params) => (highlightedRowIds.includes(params.id) ? 'bold' : 'normal'),
     },
 
     {
@@ -107,95 +105,104 @@ const Project = () => {
       renderCell: (params) => (
         <Stack direction="row" alignItems="right" spacing={3}>
           <IconButton onClick={() => openDetailsDialog(params.row)} size="medium" aria-label="link" color="primary"><VisibilityOutlined fontSize='inherit' /></IconButton>
-          <IconButton onClick={() => openDialog(params.id)} size="medium" color="primary"><Edit fontSize='inherit' /></IconButton>
+          <IconButton onClick={() => openEditDialog(params.row)} size="medium" color="primary"><Edit fontSize='inherit' /></IconButton>
           <IconButton onClick={() => openDeleteDialog(params.id)} size="medium" color="primary"><Delete fontSize='inherit' /></IconButton>
         </Stack>
       ),
     },
   ];
+  /*###################################### Add Project #######################################*/
 
-  /*###################################### On change event #######################################*/
+  const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
   const [formData, setFormData] = useState({});
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-
-    // Clear the specific field error when the user starts typing
-    setErrors((prevErrors) => ({
-      ...prevErrors,
-      [name]: '',
-    }));
-  };
-
-  /*###################################### Valid form #######################################*/
   const [errors, setErrors] = useState({});
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.rackName) newErrors.rackName = 'Rack Name is required';
-    return newErrors;
-  };
+  const [dialogMode, setDialogMode] = useState("add");
 
-  /*###################################### Add Rack #######################################*/
   const openAddDialog = () => {
-    setIsAddRackOpen(true);
+    setDialogMode("add");
+    setErrors({});
+    setFormData({});
+    setIsAddProjectOpen(true);
   };
 
   const closeAddDialog = () => {
-    setIsAddRackOpen(false);;
+    setIsAddProjectOpen(false);;
   };
 
-  const saveRack = async () => {
+
+  // --- Generic change handler for all TextFields ---
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    // Clear specific field error when typing
+    setErrors((prev) => ({
+      ...prev,
+      [name]: "",
+    }));
+  };
+
+  // ----------------- Validate fields (customize as needed) ----------------
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.title || formData.title.trim() === "") {
+      newErrors.title = "Titel ist erforderlich";
+    }
+    if (!formData.productionYear) {
+      newErrors.productionYear = "Produktionsjahr ist erforderlich";
+    }
+    return newErrors;
+  };
+
+  // ####################################### Add project ####################################### 
+  const handleAddProject = async () => {
     const formErrors = validateForm();
-    if (Object.keys(formErrors).length === 0) {
-      try {
-        await axiosInstance.post('/projects/', formData);
-        fetchData(paginationModel);
-        setOpen(true); // Show Success Message
-        closeDialog();
-        closeAddDialog();
-      } catch (error) {
-        console.log(error)
-      }
-    } else {
+    if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
+      return;
+    }
+    try {
+      setDataLoading(true);
+      await axiosInstance.post("/projects", formData);
+      await fetchData(paginationModel);
+      setOpen(true);          // success snackbar
+      closeAddDialog();       // close dialog
+    } catch (error) {
+    } finally {
+      setDataLoading(false);
     }
   };
 
-  /*###################################### Update Rack #######################################*/
-  const updateRack = async () => {
+  //####################################### Update Project ####################################### 
+  const handleUpdateProject = async () => {
     const formErrors = validateForm();
-    if (Object.keys(formErrors).length === 0) {
-      try {
-        const updatedRows = rows.map((row) =>
-          row.id === selectedRow.id ? { ...row, ...formData } : row,
-        );
-        await axiosInstance.put(`/projects/${formData.id}`, formData);
-        setRows(updatedRows);
-        setHighlightedRowIds([selectedRow.id]); // Mark updated row
-        setOpen(true); // Show Success Message
-        closeDialog();
-      } catch (error) {
-        console.log(error);
-      }
-    } else {
+    if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
+      return;
+    }
+    try {
+      setDataLoading(true);
+      await axiosInstance.put(`/projects/${formData.id}`, formData);
+      await fetchData(paginationModel);
+      setOpen(true);
+      closeAddDialog();
+    } catch (error) {
+      console.error("Error updating project:", error);
+    } finally {
+      setDataLoading(false);
     }
   };
 
-  /***************Edit Rack*****************/
-
-  const openDialog = (rowData) => {
-    setSelectedRow(rowData || null);
+  const openEditDialog = (rowData) => {
     setFormData(rowData || {});
-    setIsDialogOpen(true);
+    setErrors({});
+    setDialogMode("edit");
+    setIsAddProjectOpen(true);
   };
-
-  const closeDialog = () => {
-    setSelectedRow(null);
-    setFormData({});
-    setIsDialogOpen(false);
-  };
-
 
   /*###################################### Delete Rack #######################################*/
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -228,28 +235,15 @@ const Project = () => {
   const [rowDetails, setRowDetails] = useState({});
 
   const openDetailsDialog = (rowData) => {
-    setSelectedRow(rowData || null);
     setRowDetails(rowData);
     setIsDetailsDialogOpen(true);
   };
 
   const closeDetailsDialog = () => {
     setHighlightedRowIds([]);
-    setSelectedRow(null);
     setRowDetails({});
     setIsDetailsDialogOpen(false);
   };
-
-  /*###################################### Reset Branch #######################################*/
-  const resetRack = () => {
-    setFormData({
-      rackName: '',
-      rackDetails: '',
-      rackArea: ''
-    });
-    setErrors({});
-  };
-
 
   /*###################################### Alert On Rack Save #######################################*/
   const [open, setOpen] = useState(false);
@@ -262,22 +256,106 @@ const Project = () => {
 
   /*###################################### Map coloum name is details dialog #######################################*/
   const keyNameMapping = {
-    rackName: 'Rack Name',
-    rackDetails: 'Rack Details',
-    rackArea: 'Rack Area',
-    epaperCount: 'ePapers',
-    stationCount: 'Stations',
-    createdAt: 'Created At',
-    updatedAt: 'Updated At',
+    // Allgemeine Informationen
+    title: "Titel",
+    productionYear: "Produktionsjahr",
+    country: "Land",
+    aka: "Alternativer Titel (AKA)",
+    origVers: "Originalversion",
+    versInfo: "Versionsinfo",
+    production: "Produktion",
+    status: "Status",
+    minutes: "Minuten",
+    meters: "Meter",
+    formats: "Formate",
+    movieId: "Film-ID",
+
+    // Crew
+    regie: "Regie",
+    incharge: "Verantwortlich",
+    inchargeSec: "Zweitverantwortlich",
+    bookAuthor: "Buchautor",
+    coAuthor: "Co-Autor",
+
+    // Termine
+    premiereDate: "Premiere-Datum",
+    cinemaStartDate: "Kinostart-Datum",
+    tvStartDate: "TV-Start-Datum",
+
+    // Beschreibungen
+    synopsisDe: "Synopsis (DE)",
+    festivalInfo: "Festival-Informationen",
+    awards: "Auszeichnungen",
+    eingabenFoerderer: "Eingaben Förderer",
+    kopien: "Kopien",
+
+    // Technische Informationen
+    tonstudio: "Tonstudio",
+    mischung: "Mischung",
+    weitereTonbearbeitung: "Weitere Tonbearbeitung",
+    videotechnik: "Videotechnik",
+    schnittassi: "Schnittassistenz",
+    schnitt: "Schnitt",
+    weitereBildbearbeitung: "Weitere Bildbearbeitung",
+    stereodolby: "Stereodolby",
+    formatDreh: "Format (Dreh)",
+    formatSchnitt: "Format (Schnitt)",
+    auswertung: "Auswertung",
+    filmformat: "Filmformat",
+    bildformat: "Bildformat",
+    labor: "Labor",
+    tonsystem: "Tonsystem",
+    negmont: "Negativmontage",
+
+    //  Links & Metadaten
+    vodLink: "VOD-Link",
+    screenerLink: "Screener-Link",
+    trailerLink: "Trailer-Link",
+    webKeywords: "Web-Schlüsselwörter",
+    isan: "ISAN",
+    imdb: "IMDb-Link",
+
+    // Zeitstempel
+    createdAt: "Erstellt am",
+    updatedAt: "Aktualisiert am",
+    deletedAt: "Gelöscht am"
   };
-  /* ######################################### Grid Selected Item ###################################### */
-  // const [selectedRows, setSelectedRows] = useState([]);
-  // const handleSelectionChange = (newSelectionModel) => {
-  //   setSelectedRows(newSelectionModel);
-  // };
-  // const selectedElement = () => {
-  //   return selectedRows.length;
-  // };
+
+
+  const formatValue = (key, value) => {
+    if (!value) return "-";
+
+    // Format ISO date/time fields
+    if (["createdAt", "updatedAt", "deletedAt"].includes(key)) {
+      const date = new Date(value);
+      return isNaN(date)
+        ? value
+        : date.toLocaleString("de-DE", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+    }
+
+    // Plain date fields
+    if (["premiereDate", "cinemaStartDate", "tvStartDate"].includes(key)) {
+      const date = new Date(value);
+      return isNaN(date)
+        ? value
+        : date.toLocaleDateString("de-DE", {
+          year: "numeric",
+          month: "long",
+          day: "numeric"
+        });
+    }
+    // Default
+    return value;
+  };
+
+
+
 
   return (
     <Box>
@@ -287,13 +365,15 @@ const Project = () => {
         refreshElement={() => fetchData(paginationModel)}
         route={"projekt"} />
 
+      {/*....................Add and Update Project............... */}
       <Dialog
-        open={isAddRackOpen}
+        open={isAddProjectOpen}
         onClose={closeAddDialog}
-        closeAfterTransition={true}
+        closeAfterTransition
         disableRestoreFocus
-        fullWidth>
-        <DialogTitle>Add Rack</DialogTitle>
+        fullWidth
+        maxWidth="xl"
+      >
         <IconButton
           aria-label="close"
           onClick={closeAddDialog}
@@ -306,49 +386,215 @@ const Project = () => {
         >
           <Close />
         </IconButton>
+        <DialogTitle> {dialogMode === "add" ? "Projekt hinzufügen" : "Projekt bearbeiten"}</DialogTitle>
+        <DialogContent dividers sx={{ maxHeight: "80vh", overflowY: "auto" }}>
 
-        <DialogContent>
-          <Box>
-            <TextField
-              name="rackName"
-              value={formData.rackName || ''}
-              onChange={handleChange}
-              required
-              fullWidth
-              id="rackName"
-              label="Rack Name"
-              error={!!errors.rackName}
-              helperText={errors.rackName}
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={8}>
+              <Paper sx={{ mt: 1, p: 3 }} elevation={3}>
+                <Grid container spacing={3}>
 
-              autoFocus
-            />
+                  {/* Projektinformationen */}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      Projektinformationen
+                    </Typography>
+                  </Grid>
 
-            <TextField
-              fullWidth
-              name="rackDetails"
-              label="Rack Details"
-              value={formData.rackDetails || ''}
-              onChange={handleChange}
-              autoComplete="rack-details"
-              margin="normal"
-            />
+                  {[
+                    { name: "title", label: "Titel" },
+                    { name: "productionYear", label: "Produktionsjahr" },
+                    { name: "country", label: "Land" },
+                    { name: "aka", label: "Alternativer Titel (AKA)" },
+                    { name: "origVers", label: "Originalversion" },
+                    { name: "versInfo", label: "Versionsinfo" },
+                    { name: "production", label: "Produktion" },
+                    { name: "status", label: "Status" },
+                    { name: "minutes", label: "Minuten" },
+                    { name: "meters", label: "Meter" },
+                    { name: "formats", label: "Formate" },
+                    { name: "movieId", label: "Film ID" },
+                  ].map((f) => (
+                    <Grid item xs={12} sm={4} key={f.name}>
+                      <TextField
+                        fullWidth
+                        label={f.label}
+                        name={f.name}
+                        value={formData[f.name] ?? ""}
+                        onChange={handleChange}
+                        error={Boolean(errors[f.name])}
+                        helperText={errors[f.name] || " "}
+                      />
+                    </Grid>
+                  ))}
 
-            <TextField
-              fullWidth
-              name="rackArea"
-              value={formData.rackArea || ''}
-              id="rackArea"
-              label="Rack Area"
-              onChange={handleChange}
-              autoComplete="rack-area"
-              margin="dense"
-            />
-          </Box>
+                  {/* Crew */}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 2 }}>
+                      Crew
+                    </Typography>
+                  </Grid>
+
+                  {[
+                    { name: "regie", label: "Regie" },
+                    { name: "incharge", label: "Verantwortlich" },
+                    { name: "inchargeSec", label: "Zweitverantwortlich" },
+                    { name: "bookAuthor", label: "Buchautor" },
+                    { name: "coAuthor", label: "Co-Autor" },
+                  ].map((f) => (
+                    <Grid item xs={12} sm={4} key={f.name}>
+                      <TextField
+                        fullWidth
+                        label={f.label}
+                        name={f.name}
+                        value={formData[f.name] ?? ""}
+                        onChange={handleChange}
+                      />
+                    </Grid>
+                  ))}
+
+                  {/* Beschreibungen */}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 2 }}>
+                      Beschreibungen
+                    </Typography>
+                  </Grid>
+
+                  {[
+                    { name: "synopsisDe", label: "Synopsis (DE)" },
+                    { name: "festivalInfo", label: "Festival-Informationen" },
+                    { name: "awards", label: "Auszeichnungen" },
+                    { name: "eingabenFoerderer", label: "Eingaben Förderer" },
+                    { name: "kopien", label: "Kopien" },
+                  ].map((f) => (
+                    <Grid item xs={12} key={f.name}>
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={2}
+                        label={f.label}
+                        name={f.name}
+                        value={formData[f.name] ?? ""}
+                        onChange={handleChange}
+                      />
+                    </Grid>
+                  ))}
+
+                  {/* Technische Informationen */}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 2 }}>
+                      Technische Informationen
+                    </Typography>
+                  </Grid>
+
+                  {[
+                    { name: "tonstudio", label: "Tonstudio" },
+                    { name: "mischung", label: "Mischung" },
+                    { name: "weitereTonbearbeitung", label: "Weitere Tonbearbeitung" },
+                    { name: "videotechnik", label: "Videotechnik" },
+                    { name: "schnittassi", label: "Schnittassistenz" },
+                    { name: "schnitt", label: "Schnitt" },
+                    { name: "weitereBildbearbeitung", label: "Weitere Bildbearbeitung" },
+                    { name: "stereodolby", label: "Stereodolby" },
+                    { name: "formatDreh", label: "Format (Dreh)" },
+                    { name: "formatSchnitt", label: "Format (Schnitt)" },
+                    { name: "auswertung", label: "Auswertung" },
+                    { name: "filmformat", label: "Filmformat" },
+                    { name: "bildformat", label: "Bildformat" },
+                    { name: "labor", label: "Labor" },
+                    { name: "tonsystem", label: "Tonsystem" },
+                    { name: "negmont", label: "Negativmontage" },
+                  ].map((f) => (
+                    <Grid item xs={12} sm={4} key={f.name}>
+                      <TextField
+                        fullWidth
+                        label={f.label}
+                        name={f.name}
+                        value={formData[f.name] ?? ""}
+                        onChange={handleChange}
+                      />
+                    </Grid>
+                  ))}
+
+                  {/* Links & Metadaten */}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 2 }}>
+                      Links & Metadaten
+                    </Typography>
+                  </Grid>
+
+                  {[
+                    { name: "vodLink", label: "VOD-Link" },
+                    { name: "screenerLink", label: "Screener-Link" },
+                    { name: "trailerLink", label: "Trailer-Link" },
+                    { name: "webKeywords", label: "Web-Schlüsselwörter" },
+                    { name: "isan", label: "ISAN" },
+                    { name: "imdb", label: "IMDb-Link" },
+                  ].map((f) => (
+                    <Grid item xs={12} sm={4} key={f.name}>
+                      <TextField
+                        fullWidth
+                        label={f.label}
+                        name={f.name}
+                        value={formData[f.name] ?? ""}
+                        onChange={handleChange}
+                      />
+                    </Grid>
+                  ))}
+
+                </Grid>
+              </Paper>
+            </Grid>
+
+            <Grid item xs={12} sm={4}>
+              <Paper sx={{ mt: 1, p: 3 }} elevation={3}>
+                {/* Termine */}
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1" sx={{
+                    fontWeight: 600,
+                    mb: 2
+                  }}>
+                    Termine
+                  </Typography>
+                </Grid>
+                <Grid container spacing={3}>
+                  {[
+                    { name: "premiereDate", label: "Premiere Datum" },
+                    { name: "cinemaStartDate", label: "Kinostart Datum" },
+                    { name: "tvStartDate", label: "TV-Start Datum" },
+                  ].map((f) => (
+                    <Grid item xs={12} sm={12} key={f.name}>
+                      <TextField
+                        fullWidth
+                        type="date"
+                        InputLabelProps={{ shrink: true }}
+                        label={f.label}
+                        name={f.name}
+                        value={formData[f.name] ?? ""}
+                        onChange={handleChange}
+                      />
+                    </Grid>
+                  ))}
+
+                </Grid>
+
+              </Paper>
+            </Grid>
+          </Grid>
+
         </DialogContent>
 
-        <DialogActions sx={{ pb: 1 }}>
-          <Button onClick={resetRack} variant="outlined" color="secondary">Reset</Button>
-          <Button onClick={saveRack} variant="contained" color="secondary" sx={{ mr: 2 }}>Add Rack</Button>
+        <DialogActions>
+          <Button onClick={closeAddDialog} color="secondary">Abbrechen</Button>
+          {dialogMode === "add" ? (
+            <Button onClick={handleAddProject} sx={{ mr: 2 }} variant="contained" color="primary">
+              Hinzufügen
+            </Button>
+          ) : (
+            <Button onClick={handleUpdateProject} sx={{ mr: 2 }} variant="contained" color="primary">
+              Aktualisieren
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 
@@ -379,13 +625,12 @@ const Project = () => {
           }}
           slots={{ pagination: CustomPagination }}
         />
-
       </Paper>
 
 
       <Snackbar
         open={open}
-        autoHideDuration={1000}
+        autoHideDuration={3000}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         onClose={closeSnackbar}
       >
@@ -394,54 +639,23 @@ const Project = () => {
           severity="success"
           variant="filled"
           sx={{ width: '100%' }}>
-          Rack Save Successfully
+          Projekt erfolgreich gespeichert
         </Alert></Snackbar>
 
-      <Dialog open={isDialogOpen}
-        onClose={closeDialog}
-        closeAfterTransition={true}
-        disableRestoreFocus
-      >
-        <DialogTitle>Edit Rack</DialogTitle>
-        <DialogContent>
-          <TextField
-            name="rackName"
-            label="Rack Name"
-            value={formData.rackName || ''}
-            onChange={handleChange}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            name="rackDetails"
-            label="Rack Details"
-            value={formData.rackDetails || ''}
-            onChange={handleChange}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            name="rackArea"
-            label="Rack Area"
-            value={formData.rackArea || ''}
-            onChange={handleChange}
-            fullWidth
-            margin="normal"
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeDialog} color="secondary">Cancel</Button>
-          <Button onClick={updateRack} sx={{ mr: 2 }} variant="contained" color="primary">
-            UPDATE
-          </Button>
-        </DialogActions>
-      </Dialog>
-
+      {/*..............................Project Details Dialog............................. */}
       <Dialog open={isDetailsDialogOpen}
-        onClose={closeDialog}
+        onClose={closeDetailsDialog}
         closeAfterTransition={true}
         disableRestoreFocus
-        fullWidth>
+        fullWidth
+        maxWidth="md"
+        PaperProps={{
+          sx: {
+            minHeight: "95%",     // keeps it from collapsing vertically
+            transition: "none",     // prevents flicker on unmount
+          },
+        }}
+      >
         <IconButton
           aria-label="close"
           onClick={closeDetailsDialog}
@@ -453,26 +667,22 @@ const Project = () => {
           }}>
           <Close />
         </IconButton>
-        <DialogTitle>Rack Details</DialogTitle>
-        <DialogContent sx={{ minWidth: 400 }}>
+
+        <DialogTitle>Projekt Informationen</DialogTitle>
+        <DialogContent dividers>
           <TableContainer>
             <Table size="small" aria-label="a dense table" sx={{ borderCollapse: 'collapse' }}>
               <TableBody>
                 {Object.entries(rowDetails)
-                  .filter(([key]) => !['id', 'rackImage', 'storeId'].includes(key)) // Filter out unwanted keys
+                  .filter(([key]) => key !== "deletedAt")
                   .map(([key, value]) => {
                     const displayKey = keyNameMapping[key] || key;
-
                     return (
-                      <TableRow key={key} sx={{ borderBottom: 'none' }}>
-                        <TableCell align='left' width="100" component="th" sx={{ borderBottom: 'none', padding: '8px 16px' }}>
-                          <strong>{displayKey}:</strong>
-                        </TableCell>
-                        <TableCell align='left' sx={{ borderBottom: 'none' }}>
-                          {value}
-                        </TableCell>
+                      <TableRow key={key}>
+                        <TableCell sx={{ borderBottom: 'none' }}><strong>{displayKey}:</strong></TableCell>
+                        <TableCell sx={{ borderBottom: 'none' }}>{formatValue(key, value)}</TableCell>
                       </TableRow>
-                    ); // Ensure no empty lines here
+                    );
                   })}
               </TableBody>
             </Table>
@@ -484,11 +694,14 @@ const Project = () => {
         </DialogActions>
       </Dialog>
 
+
       <Dialog
         open={isDeleteDialogOpen}
         onClose={closeDeleteDialog}
         closeAfterTransition={true}
         disableRestoreFocus
+        fullWidth
+        maxWidth="xl"
       >
         <IconButton
           aria-label="close"
@@ -501,16 +714,16 @@ const Project = () => {
           }}>
           <Close />
         </IconButton>
-        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogTitle>Löschen bestätigen</DialogTitle>
         <DialogContent>
-          <Typography> Are you sure you want to delete this rack ?</Typography>
+          <Typography> Möchten Sie diesen Projekt wirklich löschen?</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={closeDeleteDialog} color="primary">
-            Cancel
+            Stornieren
           </Button>
           <Button onClick={handleDeleteRow} variant="contained" color="error">
-            Delete
+            Löschen
           </Button>
         </DialogActions>
       </Dialog>

@@ -9,13 +9,11 @@ import {
   Paper,
   Divider,
   Grid,
-  Menu,
-  MenuItem,
   Badge,
   Typography
 } from '@mui/material';
 
-import { Add, DeleteSweep, Download, FileUpload, KeyboardArrowDown, RotateLeft } from '@mui/icons-material';
+import { Add, DeleteSweep, RotateLeft } from '@mui/icons-material';
 
 const Ribbon = (
   { addElement,
