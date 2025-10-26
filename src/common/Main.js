@@ -3,9 +3,8 @@ import Box from '@mui/material/Box';
 import {
   Dashboard,
   ContactMail,
-  CalendarViewMonth,
   Business,
-  ListAlt,
+  ViewInAr,
   PeopleAlt,
 
 } from '@mui/icons-material';
@@ -20,7 +19,7 @@ const Main = ({ children }) => {
 
   const menuItem = [
     { path: "/dashboard", name: "Dashboard", icon: <Dashboard /> },
-    { path: "/project", name: "Projekt", icon: <ListAlt /> },
+    { path: "/project", name: "Projekt", icon: <ViewInAr /> },
     { path: "/contact", name: "Kontakt", icon: <ContactMail /> },
     { path: "/company", name: "Firma", icon: <Business /> },
     { path: "/user", name: "User", icon: <PeopleAlt /> },

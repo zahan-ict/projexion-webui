@@ -14,10 +14,8 @@ import {
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  Translate,
   Logout,
   Menu as MenuIcon,
-  Settings,
   Person
 } from '@mui/icons-material';
 import { useLanguage } from '../language/LanguageContext';
@@ -91,7 +89,7 @@ const Header = ({ handleDrawerToggle, open, route }) => {
     if (inputValue.length < 2) return;
     setLoading(true);
     axiosInstance
-      .get(`nodes/search?query=${inputValue}`)
+      .get(`projects/search?query=${inputValue}`)
       .then((response) => {
         if (response.data) setOptions(response.data);
       })
