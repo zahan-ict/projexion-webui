@@ -19,52 +19,52 @@ import {
   TableRow,
   Snackbar,
   Alert,
-  Fade
+  Grid
 } from '@mui/material';
-import { Delete, Close, VisibilityOutlined, Edit, Router, CastConnected } from '@mui/icons-material';
+import { Delete, Close, VisibilityOutlined, Edit } from '@mui/icons-material';
 import Ribbon from '../../common/Ribbon';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useAxiosInstance } from '../Auth/AxiosProvider';
-import CustomPagination from '../../components/CustomPagination'
-
+import CustomPagination from '../../components/CustomPagination';
 
 const Company = () => {
   const { axiosInstance } = useAxiosInstance();
-  const [rows, setRows] = useState([]);
-  const [highlightedRowIds, setHighlightedRowIds] = useState([]); // State for tracking highlighted rows
-  const [selectedRow, setSelectedRow] = useState(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [rowToDeleteId, setRowToDeleteId] = useState(null);
-  const [isAddRackOpen, setIsAddRackOpen] = useState(false);
 
-  /*###################################### Load All Data On Page Load #######################################*/
+  /* ---------------- STATE ---------------- */
+  const [rows, setRows] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 20 });
   const [rowCount, setRowCount] = useState(0);
+  const [formData, setFormData] = useState({});
+  const [errors, setErrors] = useState({});
 
+
+  /* Dialogs */
+  const [isCompanyDialogOpen, setIsCompanyDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState("add");
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [rowToDeleteId, setRowToDeleteId] = useState(null);
+  const [rowDetails, setRowDetails] = useState({});
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+
+  /* ################################### Load data on page load  #####################################*/
   const fetchData = useCallback(async ({ page, pageSize }) => {
-    if (pageSize <= 0) return; // Ensure pageSize is always > 0
+    if (pageSize <= 0) return;
     setDataLoading(true);
     try {
       const response = await axiosInstance.get(`/companies/paging?pageIndex=${page}&pageSize=${pageSize}`);
       const { data, totalCount } = response.data;
-      if (data && data.length > 0) {
-        setRows(data);
-        setRowCount(totalCount); // Assuming API returns total count
-        // setRowCount(16);
-      } else {
-        setRows([]);
-        setRowCount(0);
-      }
+      setRows(data || []);
+      setRowCount(totalCount || 0);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching companies:', error);
     } finally {
       setDataLoading(false);
     }
   }, [axiosInstance]);
 
   useEffect(() => {
-    // Fetch data on component mount
     fetchData(paginationModel);
   }, [fetchData, paginationModel]);
 
@@ -72,149 +72,132 @@ const Company = () => {
     setPaginationModel(newPaginationModel);
   };
 
+  /* ---------------- TABLE COLUMNS ---------------- */
   const columns = [
     {
       field: 'companyName',
       headerName: 'Firmenname',
       renderHeader: () => <strong>Firmenname</strong>,
-      width: 300,
-      cellClassName: (params) => (highlightedRowIds.includes(params.id) ? 'bold' : 'normal'),
+      flex: 1
     },
     {
       field: 'companyMail',
       headerName: 'E-Mail',
       renderHeader: () => <strong>E-Mail</strong>,
-      width: 300,
-      cellClassName: (params) => (highlightedRowIds.includes(params.id) ? 'bold' : 'normal'),
+      flex: 1
+    },
+    {
+      field: 'companyPhone',
+      headerName: 'Telefon',
+      renderHeader: () => <strong>Telefon</strong>,
+      flex: 1
+    },
+    {
+      field: 'companyState',
+      headerName: 'Land',
+      renderHeader: () => <strong>Land</strong>,
+      flex: 1
     },
 
-        {
-      field: 'companyPhone',
-      headerName: 'Firma Phone',
-      renderHeader: () => <strong>Firma Phone</strong>,
-      width: 300,
-      cellClassName: (params) => (highlightedRowIds.includes(params.id) ? 'bold' : 'normal'),
-    },
-            {
-      field: 'companyState',
-      headerName: 'Unternehmen Land',
-      renderHeader: () => <strong>Firma Phone</strong>,
-      width: 180,
-       flex: 1,
-      cellClassName: (params) => (highlightedRowIds.includes(params.id) ? 'bold' : 'normal'),
+       {
+      field: 'companyCity',
+      headerName: 'Stadt',
+      renderHeader: () => <strong>Stadt</strong>,
+      flex: 1
     },
     {
       field: 'actions',
-      headerName: 'Actions',
-       renderHeader: () => <strong>Actions</strong>,
-      width: 200,
+      headerName: 'Aktionen',
+      renderHeader: () => <strong>Actions</strong>,
+      width: 190,
       renderCell: (params) => (
-        <Stack direction="row" alignItems="right" spacing={3}>
-          <IconButton onClick={() => openDetailsDialog(params.row)} size="medium" aria-label="link" color="primary"><VisibilityOutlined fontSize='inherit' /></IconButton>
-          <IconButton onClick={() => openDialog(params.id)} size="medium" color="primary"><Edit fontSize='inherit' /></IconButton>
-          <IconButton onClick={() => openDeleteDialog(params.id)} size="medium" color="primary"><Delete fontSize='inherit' /></IconButton>
+        <Stack direction="row" spacing={2}>
+          <IconButton onClick={() => openDetailsDialog(params.row)} color="primary">
+            <VisibilityOutlined />
+          </IconButton>
+          <IconButton onClick={() => openEditDialog(params.row)} color="primary">
+            <Edit />
+          </IconButton>
+          <IconButton onClick={() => openDeleteDialog(params.row.id)} color="primary">
+            <Delete />
+          </IconButton>
         </Stack>
       ),
     },
   ];
 
-  /*###################################### On change event #######################################*/
-  const [formData, setFormData] = useState({});
+  /* ################################### Handle Error  #####################################*/
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-
-    // Clear the specific field error when the user starts typing
-    setErrors((prevErrors) => ({
-      ...prevErrors,
-      [name]: '',
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: '' }));
   };
 
-  /*###################################### Valid form #######################################*/
-  const [errors, setErrors] = useState({});
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.rackName) newErrors.rackName = 'Rack Name is required';
+    if (!formData.companyName) newErrors.companyName = 'Firmenname ist erforderlich';
+    // if (!formData.companyMail) newErrors.companyMail = 'E-Mail ist erforderlich';
     return newErrors;
   };
 
-  /*###################################### Add Rack #######################################*/
-  const openAddDialog = () => {
-    setIsAddRackOpen(true);
-  };
-
-  const closeAddDialog = () => {
-    setIsAddRackOpen(false);;
-  };
-
-  const saveRack = async () => {
+  /*################################### Add Company  #####################################*/
+  const handleAddCompany = async () => {
     const formErrors = validateForm();
-    if (Object.keys(formErrors).length === 0) {
-      try {
-        await axiosInstance.post('/companies/', formData);
-        fetchData(paginationModel);
-        setOpen(true); // Show Success Message
-        closeDialog();
-        closeAddDialog();
-      } catch (error) {
-        console.log(error)
-      }
-    } else {
-      setErrors(formErrors);
-    }
-  };
-
-  /*###################################### Update Rack #######################################*/
-  const updateRack = async () => {
-    const formErrors = validateForm();
-    if (Object.keys(formErrors).length === 0) {
-      try {
-        const updatedRows = rows.map((row) =>
-          row.id === selectedRow.id ? { ...row, ...formData } : row,
-        );
-        await axiosInstance.put(`/companies/${formData.id}`, formData);
-        setRows(updatedRows);
-        setHighlightedRowIds([selectedRow.id]); // Mark updated row
-        setOpen(true); // Show Success Message
-        closeDialog();
-      } catch (error) {
-        console.log(error);
-      }
-    } else {
-      setErrors(formErrors);
-    }
-  };
-
-  /***************Edit Rack*****************/
-
-  const openDialog = (rowData) => {
-    setSelectedRow(rowData || null);
-    setFormData(rowData || {});
-    setIsDialogOpen(true);
-  };
-
-  const closeDialog = () => {
-    setSelectedRow(null);
-    setFormData({});
-    setIsDialogOpen(false);
-  };
-
-
-  /*###################################### Delete Rack #######################################*/
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const handleDeleteRow = async (id) => {
+    if (Object.keys(formErrors).length > 0) return setErrors(formErrors);
     try {
-      const idToDelete = rowToDeleteId;
-      if (idToDelete !== null) {
-        const updatedRows = rows.filter((row) => row.id !== idToDelete);
-        await axiosInstance.delete(`/companies/${idToDelete}`);
-        setRows(updatedRows);
-        closeDeleteDialog();
-      }
+      await axiosInstance.post('/companies', formData);
+      fetchData(paginationModel);
+      setOpenSnackbar(true);
+      closeCompanyDialog();
     } catch (error) {
-      console.error('Error deleting row:', error);
+      console.error('Error adding company:', error);
     }
+  };
+  /* ################################### Uodate Companz  #####################################*/
+  const handleUpdateCompany = async () => {
+    const formErrors = validateForm();
+    if (Object.keys(formErrors).length > 0) return setErrors(formErrors);
+
+    try {
+      await axiosInstance.put(`/companies/${formData.id}`, formData);
+      fetchData(paginationModel);
+      setOpenSnackbar(true);
+      closeCompanyDialog();
+    } catch (error) {
+      console.error('Error updating company:', error);
+    }
+  };
+
+  /* ################################### Handle Delete  #####################################*/
+  const handleDeleteCompany = async () => {
+    try {
+      await axiosInstance.delete(`/companies/${rowToDeleteId}`);
+      fetchData(paginationModel);
+      closeDeleteDialog();
+    } catch (error) {
+      console.error('Error deleting company:', error);
+    }
+  };
+
+  /* ---------------- DIALOG OPEN/CLOSE ---------------- */
+  const openAddDialog = () => {
+    setDialogMode("add");
+    setFormData({});
+    setErrors({});
+    setIsCompanyDialogOpen(true);
+  };
+
+  const openEditDialog = (rowData) => {
+    setDialogMode("edit");
+    setFormData(rowData);
+    setErrors({});
+    setIsCompanyDialogOpen(true);
+  };
+
+  const closeCompanyDialog = () => {
+    setFormData({});
+    setErrors({});
+    setIsCompanyDialogOpen(false);
   };
 
   const openDeleteDialog = (id) => {
@@ -227,302 +210,449 @@ const Company = () => {
     setIsDeleteDialogOpen(false);
   };
 
-  /*###################################### Show Branch Details #######################################*/
-  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
-  const [rowDetails, setRowDetails] = useState({});
-
   const openDetailsDialog = (rowData) => {
-    setSelectedRow(rowData || null);
     setRowDetails(rowData);
     setIsDetailsDialogOpen(true);
   };
 
   const closeDetailsDialog = () => {
-    setHighlightedRowIds([]);
-    setSelectedRow(null);
-    setRowDetails({});
     setIsDetailsDialogOpen(false);
   };
 
-  /*###################################### Reset Branch #######################################*/
-  const resetRack = () => {
-    setFormData({
-      rackName: '',
-      rackDetails: '',
-      rackArea: ''
-    });
-    setErrors({});
-  };
-
-
-  /*###################################### Alert On Rack Save #######################################*/
-  const [open, setOpen] = useState(false);
-  const closeSnackbar = (event, reason) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setOpen(false);
-  };
-
-  /*###################################### Map coloum name is details dialog #######################################*/
+  /* ---------------- KEY MAPPING ---------------- */
   const keyNameMapping = {
-    rackName: 'Rack Name',
-    rackDetails: 'Rack Details',
-    rackArea: 'Rack Area',
-    epaperCount: 'ePapers',
-    stationCount: 'Stations',
-    createdAt: 'Created At',
-    updatedAt: 'Updated At',
+    companyName: 'Firmenname',
+    companyMail: 'E-Mail',
+    companyPhone: 'Telefon',
+    companyAddress: 'Adresse',
+    companyCity: 'Stadt',
+    companyState: 'Land',
+    companyZip: 'PLZ',
+    createdAt: 'Erstellt am',
+    updatedAt: 'Aktualisiert am',
   };
-  /* ######################################### Grid Selected Item ###################################### */
-  // const [selectedRows, setSelectedRows] = useState([]);
-  // const handleSelectionChange = (newSelectionModel) => {
-  //   setSelectedRows(newSelectionModel);
-  // };
-  // const selectedElement = () => {
-  //   return selectedRows.length;
-  // };
 
+  const formatValue = (key, value) => {
+    if (!value) return "-";
+    if (["createdAt", "updatedAt"].includes(key)) {
+      const date = new Date(value);
+      return isNaN(date)
+        ? value
+        : date.toLocaleString("de-DE", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+    }
+    return value;
+  };
+
+  /* ---------------- RENDER ---------------- */
   return (
     <Box>
       <Ribbon
-        addElement={(openAddDialog)}
+        addElement={openAddDialog}
         handleExport={""}
         refreshElement={() => fetchData(paginationModel)}
-        route={"firma"} />
+        route={"firma"}
+      />
 
-      <Dialog
-        open={isAddRackOpen}
-        onClose={closeAddDialog}
-        closeAfterTransition={true}
-        disableRestoreFocus
-        fullWidth>
-        <DialogTitle>Add Rack</DialogTitle>
+      {/*.............................Add/Edit Company.................... */}
+      <Dialog open={isCompanyDialogOpen}
+        onClose={closeCompanyDialog}
+        fullWidth maxWidth="xl"
+        closeAfterTransition
+        disableRestoreFocus>
         <IconButton
           aria-label="close"
-          onClick={closeAddDialog}
-          sx={(theme) => ({
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: "GrayText"
-          })}
-        >
+          onClick={closeCompanyDialog}
+          sx={{ position: 'absolute', right: 8, top: 8, color: 'GrayText' }}>
           <Close />
         </IconButton>
+        <DialogTitle>
+          {dialogMode === "add" ? "Firma hinzufügen" : "Firma bearbeiten"}
+        </DialogTitle>
 
-        <DialogContent>
-          <Box>
-            <TextField
-              name="rackName"
-              value={formData.rackName || ''}
-              onChange={handleChange}
-              required
-              fullWidth
-              id="rackName"
-              label="Rack Name"
-              error={!!errors.rackName}
-              helperText={errors.rackName}
+        <DialogContent dividers>
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={8}>
+              <Paper sx={{ mt: 1, p: 2 }} elevation={3}>
+                <Grid container spacing={3}>
+                  {/* === Firmeninformationen === */}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      Firmeninformationen
+                    </Typography>
+                  </Grid>
 
-              autoFocus
-            />
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Firmenname"
+                      name="companyName"
+                      value={formData.companyName ?? ""}
+                      onChange={handleChange}
+                      error={!!errors.companyName}
+                      helperText={errors.companyName}
+                    />
+                  </Grid>
 
-            <TextField
-              fullWidth
-              name="rackDetails"
-              label="Rack Details"
-              value={formData.rackDetails || ''}
-              onChange={handleChange}
-              autoComplete="rack-details"
-              margin="normal"
-            />
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="E-Mail"
+                      name="companyMail"
+                      value={formData.companyMail ?? ""}
+                      onChange={handleChange}
+                      // error={!!errors.companyMail}
+                      // helperText={errors.companyMail}
+                    />
+                  </Grid>
 
-            <TextField
-              fullWidth
-              name="rackArea"
-              value={formData.rackArea || ''}
-              id="rackArea"
-              label="Rack Area"
-              onChange={handleChange}
-              autoComplete="rack-area"
-              margin="dense"
-            />
-          </Box>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Telefon 1"
+                      name="companyPhone"
+                      value={formData.companyPhone ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Telefon 2"
+                      name="companyPhone2"
+                      value={formData.companyPhone2 ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Telefon 3"
+                      name="companyPhone3"
+                      value={formData.companyPhone3 ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Telefon 4"
+                      name="companyPhone4"
+                      value={formData.companyPhone4 ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Telefon 5"
+                      name="companyPhone5"
+                      value={formData.companyPhone5 ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Fax"
+                      name="companyFax"
+                      value={formData.companyFax ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Durchwahl"
+                      name="companyDurchwahl"
+                      value={formData.companyDurchwahl ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  {/* === Adresse === */}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 2 }}>
+                      Adresse
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Straße"
+                      name="companyStreet"
+                      value={formData.companyStreet ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Postfach"
+                      name="companyPostbox"
+                      value={formData.companyPostbox ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Stadt"
+                      name="companyCity"
+                      value={formData.companyCity ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Postleitzahl (PLZ)"
+                      name="companyPostcode"
+                      value={formData.companyPostcode ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Bundesland / Kanton"
+                      name="companyState"
+                      value={formData.companyState ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Land"
+                      name="companyCountry"
+                      value={formData.companyCountry ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  {/* === Interne Informationen === */}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 2 }}>
+                      Interne Informationen
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={2}
+                      label="Adresskategorie (Firmenadresscat)"
+                      name="firmenadresscat"
+                      value={formData.firmenadresscat ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={2}
+                      label="Notizen"
+                      name="companyNotes"
+                      value={formData.companyNotes ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Grid>
+
+            <Grid item xs={12} sm={4}>
+              <Paper sx={{ mt: 1, p: 2 }} elevation={3}>
+                {/* === Online-Präsenz === */}
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                    Online-Präsenz
+                  </Typography>
+                </Grid>
+                <Grid container spacing={3}>
+
+                  <Grid item xs={12} sm={12}>
+                    <TextField
+                      fullWidth
+                      label="Website"
+                      name="companyWebsite"
+                      value={formData.companyWebsite ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={12}>
+                    <TextField
+                      fullWidth
+                      label="Facebook"
+                      name="companyFacebook"
+                      value={formData.companyFacebook ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={12}>
+                    <TextField
+                      fullWidth
+                      label="Instagram"
+                      name="companyInstagram"
+                      value={formData.companyInstagram ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={12}>
+                    <TextField
+                      fullWidth
+                      label="Twitter / X"
+                      name="companyTwitter"
+                      value={formData.companyTwitter ?? ""}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+                </Grid>
+              </Paper>
+
+            </Grid>
+          </Grid>
         </DialogContent>
 
-        <DialogActions sx={{ pb: 1 }}>
-          <Button onClick={resetRack} variant="outlined" color="secondary">Reset</Button>
-          <Button onClick={saveRack} variant="contained" color="secondary" sx={{ mr: 2 }}>Add Rack</Button>
-        </DialogActions>
-      </Dialog>
 
-      {/* Server side paging */}
-     <Paper sx={{ transition: 'height 0.3s ease', overflowX: 'hidden', minWidth: '100%' }}>
-        <Fade in={!dataLoading} timeout={300}>
-          <div>
-            <DataGrid
-              rows={rows}
-              columns={columns}
-              rowCount={rowCount}                // total rows from backend
-              paginationMode="server"            // enable server-side pagination
-              paginationModel={paginationModel}  // controlled pagination state
-              onPaginationModelChange={handlePaginationModelChange}
-
-              pageSizeOptions={[10, 20, 100]}    // user can change pageSize
-              checkboxSelection
-              disableSelectionOnClick
-              hideFooterSelectedRowCount
-              autoHeight
-              getRowHeight={() => 65}
-              loading={dataLoading}
-              loadingOverlay={<div className="Data-Loader"><CircularProgress /></div>}
-
-              // onRowSelectionModelChange={handleSelectionChange}
-              onCellClick={(params, event) => {
-                if (params.field !== '__check__') {
-                  event.stopPropagation();
-                }
-              }}
-              slots={{ pagination: CustomPagination }}
-            />
-          </div>
-        </Fade>
-      </Paper>
-
-
-      <Snackbar
-        open={open}
-        autoHideDuration={1000}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-        onClose={closeSnackbar}
-      >
-        <Alert
-          onClose={closeSnackbar}
-          severity="success"
-          variant="filled"
-          sx={{ width: '100%' }}>
-          Rack Save Successfully
-        </Alert></Snackbar>
-
-      <Dialog open={isDialogOpen}
-        onClose={closeDialog}
-        closeAfterTransition={true}
-        disableRestoreFocus
-      >
-        <DialogTitle>Edit Rack</DialogTitle>
-        <DialogContent>
-          <TextField
-            name="rackName"
-            label="Rack Name"
-            value={formData.rackName || ''}
-            onChange={handleChange}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            name="rackDetails"
-            label="Rack Details"
-            value={formData.rackDetails || ''}
-            onChange={handleChange}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            name="rackArea"
-            label="Rack Area"
-            value={formData.rackArea || ''}
-            onChange={handleChange}
-            fullWidth
-            margin="normal"
-          />
-        </DialogContent>
         <DialogActions>
-          <Button onClick={closeDialog} color="secondary">Cancel</Button>
-          <Button onClick={updateRack} sx={{ mr: 2 }} variant="contained" color="primary">
-            UPDATE
+          <Button onClick={closeCompanyDialog} color="secondary">
+            Abbrechen
           </Button>
+          {dialogMode === "add" ? (
+            <Button onClick={handleAddCompany} variant="contained" color="primary">
+              Hinzufügen
+            </Button>
+          ) : (
+            <Button onClick={handleUpdateCompany} variant="contained" color="primary">
+              Aktualisieren
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 
+      {/*.....................Company Details................ */}
       <Dialog open={isDetailsDialogOpen}
-        onClose={closeDialog}
-        closeAfterTransition={true}
+        onClose={closeDetailsDialog}
+        fullWidth maxWidth="sm"
+        closeAfterTransition
         disableRestoreFocus
-        fullWidth>
+      >
         <IconButton
           aria-label="close"
           onClick={closeDetailsDialog}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: "GrayText"
-          }}>
+          sx={{ position: 'absolute', right: 8, top: 8, color: 'GrayText' }}
+        >
           <Close />
         </IconButton>
-        <DialogTitle>Rack Details</DialogTitle>
-        <DialogContent sx={{ minWidth: 400 }}>
+        <DialogTitle>Firmendetails</DialogTitle>
+        <DialogContent dividers>
           <TableContainer>
-            <Table size="small" aria-label="a dense table" sx={{ borderCollapse: 'collapse' }}>
+            <Table size="small">
               <TableBody>
                 {Object.entries(rowDetails)
-                  .filter(([key]) => !['id', 'rackImage', 'storeId'].includes(key)) // Filter out unwanted keys
-                  .map(([key, value]) => {
-                    const displayKey = keyNameMapping[key] || key;
-
-                    return (
-                      <TableRow key={key} sx={{ borderBottom: 'none' }}>
-                        <TableCell align='left' width="100" component="th" sx={{ borderBottom: 'none', padding: '8px 16px' }}>
-                          <strong>{displayKey}:</strong>
-                        </TableCell>
-                        <TableCell align='left' sx={{ borderBottom: 'none' }}>
-                          {value}
-                        </TableCell>
-                      </TableRow>
-                    ); // Ensure no empty lines here
-                  })}
+                  .filter(([key]) => key !== "deletedAt")
+                  .map(([key, value]) => (
+                    <TableRow key={key}>
+                      <TableCell sx={{ borderBottom: 'none' }}>
+                        <strong>{keyNameMapping[key] || key}:</strong>
+                      </TableCell>
+                      <TableCell sx={{ borderBottom: 'none' }}>
+                        {formatValue(key, value)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
               </TableBody>
             </Table>
           </TableContainer>
-
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeDetailsDialog}>Cancel</Button>
+          <Button onClick={closeDetailsDialog}>Schließen</Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog
-        open={isDeleteDialogOpen}
+      {/* Delete Confirmation */}
+      <Dialog open={isDeleteDialogOpen}
         onClose={closeDeleteDialog}
-        closeAfterTransition={true}
+        closeAfterTransition
         disableRestoreFocus
       >
-        <IconButton
-          aria-label="close"
-          onClick={closeDeleteDialog}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: "GrayText"
-          }}>
-          <Close />
-        </IconButton>
-        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogTitle>Löschen bestätigen</DialogTitle>
         <DialogContent>
-          <Typography> Are you sure you want to delete this rack ?</Typography>
+          <Typography> Möchten Sie diesen Firma wirklich löschen?</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeDeleteDialog} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleDeleteRow} variant="contained" color="error">
-            Delete
+          <Button onClick={closeDeleteDialog}>Abbrechen</Button>
+          <Button onClick={handleDeleteCompany} color="error" variant="contained">
+            Löschen
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={1500}
+        onClose={() => setOpenSnackbar(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={() => setOpenSnackbar(false)} severity="success" variant="filled">
+          Firma erfolgreich gespeichert!
+        </Alert>
+      </Snackbar>
+
+      {/* Table */}
+      <Paper sx={{ mt: 2 }}>
+        <DataGrid
+          rows={rows}
+          columns={columns}
+          rowCount={rowCount}
+          paginationMode="server"
+          paginationModel={paginationModel}
+          onPaginationModelChange={handlePaginationModelChange}
+          columnHeaderHeight={56}
+          disableSelectionOnClick
+          hideFooterSelectedRowCount
+          getRowHeight={() => 65}
+          pageSizeOptions={[10, 20, 50]}
+          autoHeight
+          loadingOverlay={<div className="Data-Loader"><CircularProgress /></div>}
+          loading={dataLoading}
+          onCellClick={(params, event) => {
+            if (params.field !== '__check__') {
+              event.stopPropagation();
+            }
+          }}
+          slots={{ pagination: CustomPagination }}
+
+        />
+      </Paper>
     </Box>
   );
 };
 
-export default Company
+export default Company;

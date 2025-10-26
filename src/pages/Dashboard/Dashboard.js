@@ -53,11 +53,8 @@ const Dashbord = () => {
   return (
     <Box sx={{ mt: 2 }}>
       <Typography className='topTitle' color="secondary.dark" gutterBottom>{t.systemOverview} </Typography>
-
       <Box sx={{ mt: 4 }} >
         <Grid container spacing={4}>
-
-
           <Grid item xs={12} md={2} lg={2}>
             <Paper
               elevation={1}

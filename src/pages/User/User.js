@@ -80,6 +80,7 @@ const User = () => {
     {
       field: 'userFirstName',
       headerName: 'Name',
+      renderHeader: () => <strong>Name</strong>,
       width: 270,
       renderCell: (params) => (
         <Typography style={{ fontSize: '14px' }} >{params.value}</Typography>
@@ -89,6 +90,7 @@ const User = () => {
     {
       field: 'userEmail',
       headerName: 'Email',
+      renderHeader: () => <strong>Email</strong>,
       width: 270,
       renderCell: (params) => (
         <Typography style={{ fontSize: '14px' }} >{params.value}</Typography>
@@ -98,6 +100,7 @@ const User = () => {
     {
       field: 'userRoles',
       headerName: 'Roles',
+      renderHeader: () => <strong>Roles</strong>,
       width: 200,
       flex: 1,
       renderCell: (params) => (
@@ -109,6 +112,7 @@ const User = () => {
     {
       field: "validUntil",
       headerName: "Validity",
+      renderHeader: () => <strong>Validity</strong>,
       width: 220,
       renderCell: (params) => {
         const value = params.value ? new Date(params.value) : null;
@@ -172,6 +176,7 @@ const User = () => {
     {
       field: 'lastLogin',
       headerName: 'Last Seen',
+      renderHeader: () => <strong>Last Seen</strong>, 
       width: 180,
       flex: 1,
       renderCell: (params) => {
@@ -209,7 +214,8 @@ const User = () => {
     {
       field: "isActive",
       headerName: "Active",
-      width: 150,
+      renderHeader: () => <strong>Active</strong>,
+      flex: 1,
       renderCell: (params) => {
         const handleToggle = async (event) => {
           const newValue = event.target.checked;
@@ -248,9 +254,10 @@ const User = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 210,
+      renderHeader: () => <strong>Actions</strong>,
+      width: 200,
       renderCell: (params) => (
-        <Stack direction="row" alignItems="center" spacing={3}>
+        <Stack direction="row" alignItems="center" spacing={2}>
           <IconButton onClick={() => { openDetailsDialog(params.row) }} color="secondary" size="large" aria-label="view"> <VisibilityOutlined fontSize='inherit' /></IconButton>
           <IconButton onClick={() => { openDialog(params.row) }} color="secondary" size="medium" aria-label="view"><Edit fontSize='inherit' /></IconButton>
           <IconButton onClick={() => { openDeleteDialog(params.id) }} color="secondary" size="medium" aria-label="view"><Delete fontSize='inherit' /></IconButton>
@@ -636,7 +643,7 @@ const User = () => {
               onPaginationModelChange={handlePaginationModelChange}
 
               pageSizeOptions={[20, 50, 100]}    // user can change pageSize
-              checkboxSelection
+              // checkboxSelection
               disableSelectionOnClick
               hideFooterSelectedRowCount
               autoHeight

@@ -8,7 +8,7 @@ const theme = createTheme({
       contrastText: '#fff',
       lightDarkText: 'rgba(209, 205, 194, 1)',
     },
-      secondary: {
+    secondary: {
       light: '#565858ff',
       main: '#424343ff',
       dark: '#2f3030ff',
@@ -37,14 +37,20 @@ const theme = createTheme({
             outline: 'none',
           },
           '& .MuiDataGrid-cell': {
-            paddingLeft: '10px',
+            paddingLeft: '20px',
             fontSize: '14px',
           },
           '& .MuiDataGrid-columnHeader': {
-            paddingLeft: '10px',     
+            paddingLeft: '10px',
             fontWeight: 'bold',
             fontSize: '14px',
           },
+          '& .MuiDataGrid-columnHeadersInner': {
+            paddingLeft: '10px',
+          },
+          // '& .MuiDataGrid-virtualScrollerContent': {
+          //   paddingLeft: '10px',
+          // },
         },
       },
     },
@@ -61,12 +67,12 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           paddingTop: '8px',  // Adjust the padding of the CardHeader
-          marginTop: '5px', 
+          marginTop: '5px',
           marginLeft: '5px' // Add margin below the CardHeader
         },
         title: {
           fontSize: '0.98rem',  // Adjust the font size of the title
-          color:'GrayText'
+          color: 'GrayText'
         },
         subheader: {
           fontSize: '1rem',  // Adjust the font size of the subheader
@@ -77,9 +83,9 @@ const theme = createTheme({
     MuiCardContent: {
       styleOverrides: {
         root: {
-          paddingTop: '10px',  
+          paddingTop: '10px',
           paddingBottom: '20px',
-          marginBottom:'10px'
+          marginBottom: '10px'
         },
       },
     },

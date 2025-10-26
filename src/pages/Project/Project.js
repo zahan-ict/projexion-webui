@@ -101,9 +101,9 @@ const Project = () => {
       field: 'actions',
       headerName: 'Actions',
       renderHeader: () => <strong>Actions</strong>,
-      width: 200,
+      width: 190,
       renderCell: (params) => (
-        <Stack direction="row" alignItems="right" spacing={3}>
+        <Stack direction="row" alignItems="right" spacing={2}>
           <IconButton onClick={() => openDetailsDialog(params.row)} size="medium" aria-label="link" color="primary"><VisibilityOutlined fontSize='inherit' /></IconButton>
           <IconButton onClick={() => openEditDialog(params.row)} size="medium" color="primary"><Edit fontSize='inherit' /></IconButton>
           <IconButton onClick={() => openDeleteDialog(params.id)} size="medium" color="primary"><Delete fontSize='inherit' /></IconButton>
@@ -575,9 +575,7 @@ const Project = () => {
                       />
                     </Grid>
                   ))}
-
                 </Grid>
-
               </Paper>
             </Grid>
           </Grid>
@@ -607,9 +605,8 @@ const Project = () => {
           paginationMode="server"            // enable server-side pagination
           paginationModel={paginationModel}  // controlled pagination state
           onPaginationModelChange={handlePaginationModelChange}
-
           pageSizeOptions={[10, 20, 100]}    // user can change pageSize
-          checkboxSelection
+          // checkboxSelection
           disableSelectionOnClick
           hideFooterSelectedRowCount
           autoHeight

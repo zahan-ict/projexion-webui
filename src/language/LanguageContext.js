@@ -36,7 +36,7 @@ const translations = {
 };
 
 export const LanguageProvider = ({ children }) => {
-  const [language, setLanguage] = useState("en");
+  const [language, setLanguage] = useState("de");
 
   const switchLanguage = (lang) => setLanguage(lang);
 

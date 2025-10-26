@@ -120,9 +120,9 @@ const Contact = () => {
       field: 'actions',
       headerName: 'Actions',
       renderHeader: () => <strong>Actions</strong>,
-      width: 280,
+      width: 240,
       renderCell: (params) => (
-        <Stack direction="row" alignItems="right" spacing={3}>
+        <Stack direction="row" alignItems="right" spacing={2}>
           <IconButton onClick={() => openDetailsDialog(params.row)} size="medium" aria-label="link" color="primary"><VisibilityOutlined fontSize='inherit' /></IconButton>
           <IconButton onClick={() => openPdfDialog(params.row)} size="medium" aria-label="link" color="primary"><PictureAsPdf fontSize='inherit' /></IconButton>
           <IconButton onClick={() => openEditDialog(params.row)} size="medium" color="primary"><Edit fontSize='inherit' /></IconButton>
@@ -492,7 +492,7 @@ const Contact = () => {
           onPaginationModelChange={handlePaginationModelChange}
           columnHeaderHeight={56}
           pageSizeOptions={[10, 20, 100]}    // user can change pageSize
-          checkboxSelection
+          // checkboxSelection
           disableSelectionOnClick
           hideFooterSelectedRowCount
           autoHeight
