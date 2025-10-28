@@ -12,21 +12,31 @@ const api = axios.create({
 
 // ---------------- login functions -----------------
 export const loginService = async (username, password) => {
-   const response = await api.post('/auth/login',
-        new URLSearchParams({
-          username: username.toLowerCase(),
-          password: password
-        }).toString(),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          withCredentials: true
-        }
-      );
-  inMemoryToken = response.data.accessToken; // store JWT in memory
-  return response.data;
+  try {
+    const response = await api.post(
+      '/auth/login',
+      new URLSearchParams({
+        username: username.toLowerCase(),
+        password: password
+      }).toString(),
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        withCredentials: true
+      }
+    );
+
+    inMemoryToken = response.data.accessToken;
+    return response.data;
+  } catch (error) {
+    // suppress console red error and handle gracefully
+    if (error.response?.status === 401) {
+      return { error: 'Invalid credentials' }; // clean controlled response
+    }
+    console.error('Login request failed:', error.message);
+    return { error: 'Unexpected error during login' };
+  }
 };
+
 
 // ---------------- logout functions -----------------
 export const logoutService = async () => {

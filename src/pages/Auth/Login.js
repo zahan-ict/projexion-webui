@@ -84,7 +84,7 @@ const Login = () => {
             <img
               src='/static/images/logo.png'
               alt="Logo"
-              style={{  }}
+              style={{}}
             />
             <Card sx={{ minWidth: 375, marginTop: 5, mx: 2 }}>
               {loading && <LinearProgress color="primary" />}
@@ -97,7 +97,11 @@ const Login = () => {
                     Enter your credentials to continue
                   </Typography>
                 </Stack>
-                <Box sx={{ mt: 1, mx: 1 }}>
+                <Box component="form"
+                  onSubmit={(e) => {
+                    e.preventDefault();   // prevent page reload
+                    handleLogin();        // call your login logic
+                  }} sx={{ mt: 1, mx: 1 }}>
                   <TextField
                     margin="normal"
                     required
@@ -111,7 +115,7 @@ const Login = () => {
                     helperText={errors.username}
                     onChange={handleChange}
                     autoFocus
-               />
+                  />
                   <TextField
                     margin="normal"
                     required
@@ -126,7 +130,7 @@ const Login = () => {
                     helperText={errors.password}
                     onChange={handleChange}
                     // autoComplete="current-password"
-                
+
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
@@ -142,7 +146,7 @@ const Login = () => {
                   />
                   {errors.form && <Box sx={{ color: 'error.main' }}>{errors.form}</Box>}
                   <Button
-                    onClick={handleLogin}
+                    type="submit"  
                     color="primary"
                     variant="contained"
                     fullWidth
