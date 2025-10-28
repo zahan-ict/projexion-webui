@@ -12,7 +12,7 @@ const api = axios.create({
 
 // ---------------- login functions -----------------
 export const loginService = async (username, password) => {
-   const response = await axios.post(`${API_URL}/auth/login`,
+   const response = await api.post('/auth/login',
         new URLSearchParams({
           username: username.toLowerCase(),
           password: password
@@ -31,14 +31,14 @@ export const loginService = async (username, password) => {
 // ---------------- logout functions -----------------
 export const logoutService = async () => {
   try {
-    await api.post(`${API_URL }/auth/logout`);
+    await api.post('/auth/logout');
   } catch {}
   inMemoryToken = null;
 };
 
 export const refreshTokenService = async () => {
   try {
-    const response = await api.post(`${API_URL}/auth/refresh`);
+    const response = await api.post('/auth/refresh');
     inMemoryToken = response.data.accessToken;
     return inMemoryToken;
   } catch (err) {
