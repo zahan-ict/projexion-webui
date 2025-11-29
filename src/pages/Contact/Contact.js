@@ -26,7 +26,7 @@ import {
   Checkbox,
   Chip
 } from '@mui/material';
-import { Delete, Close, VisibilityOutlined, Edit, PictureAsPdf, AddCircle, RemoveCircle } from '@mui/icons-material';
+import { Delete, Close, VisibilityOutlined, Edit, AddCircle, RemoveCircle } from '@mui/icons-material';
 import Ribbon from '../../common/Ribbon';
 import { useAxiosInstance } from '../Auth/AxiosProvider';
 import CustomPagination from '../../components/CustomPagination'
@@ -83,6 +83,7 @@ const Contact = () => {
     try {
       const response = await axiosInstance.get(`/contacts/search?q=${encodeURIComponent(searchTerm)}`);
       setRows(response.data || []);
+      setRowCount(response.data.length);
     } catch (error) {
       console.error("Search error:", error);
     } finally {
@@ -94,8 +95,6 @@ const Contact = () => {
   useEffect(() => {
     if (searchTrigger > 0) searchContacts();
   }, [searchTrigger, searchContacts])
-
-
 
 
   const columns = [
@@ -142,11 +141,10 @@ const Contact = () => {
       field: 'actions',
       headerName: 'Actions',
       renderHeader: () => <strong>Actions</strong>,
-      width: 240,
+      width: 200,
       renderCell: (params) => (
         <Stack direction="row" alignItems="right" spacing={2}>
           <IconButton onClick={() => openDetailsDialog(params.row)} size="medium" aria-label="link" color="primary"><VisibilityOutlined fontSize='inherit' /></IconButton>
-          <IconButton onClick={() => openPdfDialog(params.row)} size="medium" aria-label="link" color="primary"><PictureAsPdf fontSize='inherit' /></IconButton>
           <IconButton onClick={() => openEditDialog(params.row)} size="medium" color="primary"><Edit fontSize='inherit' /></IconButton>
           <IconButton onClick={() => openDeleteDialog(params.id)} size="medium" color="primary"><Delete fontSize='inherit' /></IconButton>
         </Stack>
@@ -369,7 +367,6 @@ const Contact = () => {
   const [loading, setLoading] = useState(true);
   const [comment, setComment] = useState('');
   const [priceNote, setPriceNote] = useState('');
-  const [invoiceNumber, setInvoiceNumber] = useState('');
 
   const [prices, setPrices] = useState([{ description: '', amount: '' }]); // Start with one price field
   const addPriceField = () => {
@@ -422,6 +419,7 @@ const Contact = () => {
 
   const buildPdf = async (mode, rowData) => {
     // Get user info (cached or fetched)
+    const uniqueInvoiceNumber = Date.now().toString().slice(-8);
     const currentUser = user || (await fetchUser());
     const pdfData = {
       pdfCreator: currentUser?.userFirstName || "Administrator",
@@ -435,7 +433,7 @@ const Contact = () => {
       vatNumber: rowData.vatNumber || "",
       city: rowData.city || "",
       date: rowData.formattedDate || "",
-      invoiceNumber: invoiceNumber?.trim() || "", // ensure invoiceNumber is in scope
+      invoiceNumber: uniqueInvoiceNumber,
       invoiceTitle: rowData.invoiceTitle || "",
       bankName: rowData.bankName || "",
       iban: rowData.iban || "",
@@ -473,6 +471,10 @@ const Contact = () => {
     } catch (error) {
       console.error("Error generating PDF:", error);
     }
+  };
+
+  const removePriceField = (index) => {
+    setPrices(prices.filter((_, i) => i !== index));
   };
 
 
@@ -530,6 +532,28 @@ const Contact = () => {
     updatedAt: "Aktualisiert am"
   };
 
+  /*###################################### Ribbon Search Client Side #######################################*/
+  const [filteredRows, setFilteredRows] = useState(null); // null = no filter
+  const handleClientSearch = (value) => {
+    const search = value.trim().toLowerCase();
+
+    // Reset search
+    if (search === "") {
+      setFilteredRows(null);
+      setRowCount(rows.length);
+      return;
+    }
+
+    const result = rows.filter((row) =>
+      Object.values(row).some((field) =>
+        String(field).toLowerCase().includes(search)
+      )
+    );
+
+    setFilteredRows(result);
+    setRowCount(result.length);
+  };
+
 
   return (
     <Box>
@@ -537,18 +561,19 @@ const Contact = () => {
         addElement={(openAddDialog)}
         handleExport={""}
         refreshElement={() => fetchData(paginationModel)}
+        onSearch={handleClientSearch}
         route={"kontakt"} />
 
       {/* Server side paging */}
       <Paper>
         <DataGrid
-          rows={rows}
+          rows={filteredRows ?? rows}        //  filtered if search active
           columns={columns}
-          rowCount={rowCount}                // total rows from backend
-          paginationMode="server"            // enable server-side pagination
+          rowCount={filteredRows ? filteredRows.length : rowCount} // correct count
+          paginationMode={filteredRows ? "client" : "server"} //  switch mode
           paginationModel={paginationModel}  // controlled pagination state
           onPaginationModelChange={handlePaginationModelChange}
-          columnHeaderHeight={56}
+          columnHeaderHeight={46}
           pageSizeOptions={[10, 20, 100]}    // user can change pageSize
           // checkboxSelection
           disableSelectionOnClick
@@ -563,7 +588,9 @@ const Contact = () => {
               event.stopPropagation();
             }
           }}
+
           slots={{ pagination: CustomPagination }}
+
         />
       </Paper>
 
@@ -908,6 +935,17 @@ const Contact = () => {
                 />
               </Paper>
 
+
+              {/*............Genrate Invoice.......... */}
+              <Paper sx={{ mt: 2, p: 2 }} elevation={3}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                  Invoice
+                </Typography>
+                <Button fullWidth onClick={() => openPdfDialog(formData)} sx={{ mr: 2 }} variant="contained" color="primary">
+                  Neu Invoice
+                </Button>
+              </Paper>
+
             </Grid>
           </Grid>
         </DialogContent>
@@ -1045,7 +1083,7 @@ const Contact = () => {
                 </Button>
               </ButtonGroup>
 
-              <TextField
+              {/* <TextField
                 label="Rechnungsnummer"
                 fullWidth
                 margin="normal"
@@ -1053,7 +1091,7 @@ const Contact = () => {
                 value={invoiceNumber}
                 size="small"
                 onChange={(e) => setInvoiceNumber(e.target.value)}
-              />
+              /> */}
 
               <TextField
                 label="Kommentare hinzufügen"
@@ -1079,6 +1117,8 @@ const Contact = () => {
 
               {prices.map((item, index) => (
                 <Grid container spacing={2} key={index} alignItems="center">
+
+                  {/* Description */}
                   <Grid item xs={8}>
                     <TextField
                       label={`Beschreibung ${index + 1}`}
@@ -1089,19 +1129,32 @@ const Contact = () => {
                       onChange={(e) => updatePrice(index, "description", e.target.value)}
                     />
                   </Grid>
-                  <Grid item xs={4}>
+
+                  {/* Amount */}
+                  <Grid item xs={3}>
                     <TextField
                       label={`Preis ${index + 1}`}
                       type="number"
                       fullWidth
                       margin="normal"
-                      value={item.amount || ""}
                       size="small"
+                      value={item.amount || ""}
                       onChange={(e) => updatePrice(index, "amount", e.target.value)}
                     />
                   </Grid>
+
+                  {/* Remove Icon */}
+                  <Grid item xs={1} display="flex" justifyContent="center" alignItems="center">
+                    <IconButton
+                      color="error"
+                      onClick={() => removePriceField(index)}>
+                      <RemoveCircle />
+                    </IconButton>
+                  </Grid>
+
                 </Grid>
               ))}
+
 
             </Grid>
             <Grid item xs={8} display="flex" justifyContent="center" alignItems="center">
@@ -1132,7 +1185,7 @@ const Contact = () => {
                     border: 'none',
                   }}
                   onLoad={() => {
-                    setTimeout(() => setLoading(false), 5000);
+                    setTimeout(() => setLoading(false), 3000);
                   }}
                 />
               </Paper>

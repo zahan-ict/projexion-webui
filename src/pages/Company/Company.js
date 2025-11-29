@@ -81,6 +81,7 @@ const Company = () => {
     try {
       const response = await axiosInstance.get(`/companies/search?q=${encodeURIComponent(searchTerm)}`);
       setRows(response.data || []);
+      setRowCount(response.data.length);
     } catch (error) {
       console.error("Search error:", error);
     } finally {
@@ -271,6 +272,28 @@ const Company = () => {
     return value;
   };
 
+    /*###################################### Ribbon Search Client Side #######################################*/
+    const [filteredRows, setFilteredRows] = useState(null); // null = no filter
+    const handleClientSearch = (value) => {
+      const search = value.trim().toLowerCase();
+  
+      // Reset search
+      if (search === "") {
+        setFilteredRows(null);
+        setRowCount(rows.length);
+        return;
+      }
+  
+      const result = rows.filter((row) =>
+        Object.values(row).some((field) =>
+          String(field).toLowerCase().includes(search)
+        )
+      );
+  
+      setFilteredRows(result);
+      setRowCount(result.length);
+    };
+
   /* ---------------- RENDER ---------------- */
   return (
     <Box>
@@ -278,6 +301,7 @@ const Company = () => {
         addElement={openAddDialog}
         handleExport={""}
         refreshElement={() => fetchData(paginationModel)}
+        onSearch={handleClientSearch}
         route={"firma"}
       />
 
@@ -650,13 +674,13 @@ const Company = () => {
       {/* Table */}
       <Paper sx={{ mt: 2 }}>
         <DataGrid
-          rows={rows}
+          rows={filteredRows ?? rows}        //  filtered if search active
           columns={columns}
-          rowCount={rowCount}
-          paginationMode="server"
-          paginationModel={paginationModel}
+          rowCount={filteredRows ? filteredRows.length : rowCount} // correct count
+          paginationMode={filteredRows ? "client" : "server"} //  switch mode
+          paginationModel={paginationModel}  // controlled pagination state
           onPaginationModelChange={handlePaginationModelChange}
-          columnHeaderHeight={56}
+          columnHeaderHeight={46}
           disableSelectionOnClick
           hideFooterSelectedRowCount
           getRowHeight={() => 65}

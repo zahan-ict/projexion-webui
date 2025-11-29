@@ -19,7 +19,6 @@ import {
   InputAdornment,
   Switch,
   Autocomplete,
-  Fade,
   Grid
 } from '@mui/material';
 import { Delete, Edit, Close, Visibility, VisibilityOff, VisibilityOutlined } from '@mui/icons-material';
@@ -86,6 +85,7 @@ const User = () => {
     try {
       const response = await axiosInstance.get(`/users/search?q=${encodeURIComponent(searchTerm)}`);
       setRows(response.data || []);
+      setRowCount(response.data.length);
     } catch (error) {
       console.error("Search error:", error);
     } finally {
@@ -549,6 +549,28 @@ const User = () => {
     updatedAt: 'Updated At',
   };
 
+  /*###################################### Ribbon Search Client Side #######################################*/
+  const [filteredRows, setFilteredRows] = useState(null); // null = no filter
+  const handleClientSearch = (value) => {
+    const search = value.trim().toLowerCase();
+
+    // Reset search
+    if (search === "") {
+      setFilteredRows(null);
+      setRowCount(rows.length);
+      return;
+    }
+
+    const result = rows.filter((row) =>
+      Object.values(row).some((field) =>
+        String(field).toLowerCase().includes(search)
+      )
+    );
+
+    setFilteredRows(result);
+    setRowCount(result.length);
+  };
+
   /*###################################### Content Start #######################################*/
   return (
     <Box>
@@ -556,6 +578,7 @@ const User = () => {
         addElement={(openAddDialog)}
         handleExport={""}
         refreshElement={() => fetchData(paginationModel)}
+        onSearch={handleClientSearch}
         route={"user"} />
 
       <Dialog open={isAddDialogOpen}
@@ -684,34 +707,31 @@ const User = () => {
           User Save Successfully
         </Alert></Snackbar>
       {/* Server side paging */}
-      <Paper sx={{ transition: 'height 0.3s ease' }}>
-        <Fade in={!dataLoading} timeout={400}>
-          <div>
-            <DataGrid
-              rows={rows}
-              columns={columns}
-              rowCount={rowCount}                // total rows from backend
-              paginationMode="server"            // enable server-side pagination
-              paginationModel={paginationModel}  // controlled pagination state
-              onPaginationModelChange={handlePaginationModelChange}
+      <Paper>
+        <DataGrid
+          rows={filteredRows ?? rows}        //  filtered if search active
+          columns={columns}
+          rowCount={filteredRows ? filteredRows.length : rowCount} // correct count
+          paginationMode={filteredRows ? "client" : "server"} //  switch mode
+          paginationModel={paginationModel}  // controlled pagination state
+          onPaginationModelChange={handlePaginationModelChange}
+          columnHeaderHeight={46}
 
-              pageSizeOptions={[20, 50, 100]}    // user can change pageSize
-              // checkboxSelection
-              disableSelectionOnClick
-              hideFooterSelectedRowCount
-              autoHeight
-              getRowHeight={() => 65}
-              loading={dataLoading}
-              loadingOverlay={<div className="Data-Loader"><CircularProgress /></div>}
-              onCellClick={(params, event) => {
-                if (params.field !== '__check__') {
-                  event.stopPropagation();
-                }
-              }}
-              slots={{ pagination: CustomPagination }}
-            />
-          </div>
-        </Fade>
+          pageSizeOptions={[20, 50, 100]}    // user can change pageSize
+          // checkboxSelection
+          disableSelectionOnClick
+          hideFooterSelectedRowCount
+          autoHeight
+          getRowHeight={() => 65}
+          loading={dataLoading}
+          loadingOverlay={<div className="Data-Loader"><CircularProgress /></div>}
+          onCellClick={(params, event) => {
+            if (params.field !== '__check__') {
+              event.stopPropagation();
+            }
+          }}
+          slots={{ pagination: CustomPagination }}
+        />
       </Paper>
 
 

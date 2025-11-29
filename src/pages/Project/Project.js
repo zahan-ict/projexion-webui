@@ -79,6 +79,7 @@ const Project = () => {
       try {
         const response = await axiosInstance.get(`/projects/search?q=${encodeURIComponent(searchTerm)}`);
         setRows(response.data || []);
+        setRowCount(response.data.length);
       } catch (error) {
         console.error("Search error:", error);
       } finally {
@@ -377,7 +378,26 @@ const Project = () => {
   };
 
 
+  /*###################################### Ribbon Search Client Side #######################################*/
+  const [filteredRows, setFilteredRows] = useState(null); // null = no filter
+  const handleClientSearch = (value) => {
+  const search = value.trim().toLowerCase();
 
+    if (search === "") {
+      setFilteredRows(null);
+      setRowCount(rows.length);
+      return;
+    }
+
+    const result = rows.filter((row) =>
+      Object.values(row).some((field) =>
+        String(field).toLowerCase().includes(search)
+      )
+    );
+
+    setFilteredRows(result);
+    setRowCount(result.length);
+  };
 
   return (
     <Box>
@@ -385,6 +405,7 @@ const Project = () => {
         addElement={(openAddDialog)}
         handleExport={""}
         refreshElement={() => fetchData(paginationModel)}
+        onSearch={handleClientSearch}
         route={"projekt"} />
 
       {/*....................Add and Update Project............... */}
@@ -621,12 +642,13 @@ const Project = () => {
       {/* Server side paging */}
       <Paper>
         <DataGrid
-          rows={rows}
+          rows={filteredRows ?? rows}        //  filtered if search active
           columns={columns}
-          rowCount={rowCount}                // total rows from backend
-          paginationMode="server"            // enable server-side pagination
+          rowCount={filteredRows ? filteredRows.length : rowCount} // correct count
+          paginationMode={filteredRows ? "client" : "server"} // ← switch mode
           paginationModel={paginationModel}  // controlled pagination state
           onPaginationModelChange={handlePaginationModelChange}
+          columnHeaderHeight={46}
           pageSizeOptions={[10, 20, 100]}    // user can change pageSize
           // checkboxSelection
           disableSelectionOnClick

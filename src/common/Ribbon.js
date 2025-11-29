@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import {
   List,
   ListItem,
@@ -9,26 +8,18 @@ import {
   Paper,
   Divider,
   Grid,
-  Badge,
-  Typography
+  Typography,
+  TextField,
+  InputAdornment
 } from '@mui/material';
 
-import { Add, DeleteSweep, RotateLeft } from '@mui/icons-material';
+import { Add, RotateLeft, Search } from '@mui/icons-material';
 
 const Ribbon = (
   { addElement,
-    handleExportNode,
-    handleExportTag,
     refreshElement,
+     onSearch,
     route }) => {
-
-  const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
 
   return (
     <Box sx={{ mb: 1 }}>
@@ -64,6 +55,27 @@ const Ribbon = (
                     <RotateLeft color='primary' />
                   </ListItemIcon>
                   <ListItemText primary="Refresh" />
+                </ListItemButton>
+              </ListItem>
+              <Divider orientation="vertical" flexItem />
+               {/* Search Input */}
+              <ListItem disablePadding>
+                <ListItemButton sx={{ width: 260, p:0, m:0 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    variant="standard"
+                    placeholder="Suchen..."
+                    onChange={(e) => onSearch(e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="end">
+                          <Search fontSize="small" />
+                        </InputAdornment>
+                      ),
+                      sx: { backgroundColor: "#fff" },
+                    }}
+                  />
                 </ListItemButton>
               </ListItem>
 

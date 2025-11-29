@@ -72,9 +72,9 @@ const Sidebar = ({ open, menuItem, currentPath }) => {
         src={open ? "/static/images/logo.png" : "/static/images/logo-sm.png"}
         alt="Logo"
         style={{
-          width: open ? "50px" : "25px",
+          width: open ? "80px" : "40px",
           height: "auto",
-          marginLeft: open ? "25px" : "20px",
+          marginLeft: open ? "25px" : "8px",
           marginTop: "20px",
         }}
       />

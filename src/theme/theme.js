@@ -44,9 +44,10 @@ const theme = createTheme({
             paddingLeft: '10px',
             fontWeight: 'bold',
             fontSize: '14px',
+            backgroundColor: '#f6f6f6ff',
           },
           '& .MuiDataGrid-columnHeadersInner': {
-            paddingLeft: '10px',
+            paddingLeft: '00px',
           },
           // '& .MuiDataGrid-virtualScrollerContent': {
           //   paddingLeft: '10px',

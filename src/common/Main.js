@@ -19,8 +19,8 @@ const Main = ({ children }) => {
 
   const menuItem = [
     { path: "/dashboard", name: "Dashboard", icon: <Dashboard /> },
-    { path: "/project", name: "Projekt", icon: <ViewInAr /> },
     { path: "/contact", name: "Kontakt", icon: <ContactMail /> },
+    { path: "/project", name: "Projekt", icon: <ViewInAr /> },
     { path: "/company", name: "Firma", icon: <Business /> },
     { path: "/user", name: "User", icon: <PeopleAlt /> },
   ];
